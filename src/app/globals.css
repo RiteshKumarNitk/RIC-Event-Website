@@ -1,0 +1,89 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 224 71.4% 4.1%;
+    --card: 210 40% 98%;
+    --card-foreground: 224 71.4% 4.1%;
+    --popover: 210 40% 98%;
+    --popover-foreground: 224 71.4% 4.1%;
+    --primary: 180 100% 30%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 200 100% 97%;
+    --secondary-foreground: 220.9 39.3% 11%;
+    --muted: 210 40% 92%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 30 96% 54%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 180 100% 30%;
+    --radius: 0.75rem;
+
+  }
+
+  .dark {
+    --background: 220 20% 10%;
+    --foreground: 0 0% 98%;
+    --card: 220 20% 12%;
+    --card-foreground: 0 0% 98%;
+    --popover: 220 20% 10%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 180 100% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 20% 15%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 220 20% 18%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    --accent: 30 96% 54%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 180 100% 40%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  .rdp-day_selected {
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+  .rdp-day_today {
+    font-weight: bold;
+    color: hsl(var(--accent));
+  }
+  .rdp-button[aria-selected="true"] {
+    background-color: hsl(var(--primary) / 0.8) !important;
+  }
+  .event-day {
+    background-color: hsl(var(--accent) / 0.2);
+  }
+  .event-day-legend {
+     background-color: hsl(var(--accent) / 0.2);
+  }
+  .rdp-day_selected.event-day {
+     background-color: hsl(var(--primary)) !important;
+  }
+}
+
+/* Custom styles for Seating Chart */
+@layer components {
+  .seat-row-label {
+    @apply w-6 h-6 flex items-center justify-center text-xs font-semibold text-muted-foreground;
+  }
+}
+

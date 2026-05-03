@@ -1,0 +1,58 @@
+{
+  "placeholderImages": [
+    {
+      "id": "1",
+      "description": "Starlight Symphony Orchestra",
+      "imageUrl": "https://picsum.photos/seed/1/600/400",
+      "imageHint": "orchestra performance"
+    },
+    {
+      "id": "2",
+      "description": "Titans vs. Giants - Championship Final",
+      "imageUrl": "https://picsum.photos/seed/2/600/400",
+      "imageHint": "stadium sport"
+    },
+    {
+      "id": "3",
+      "description": "Modern Art & Abstract Forms",
+      "imageUrl": "https://picsum.photos/seed/3/600/400",
+      "imageHint": "art gallery"
+    },
+    {
+      "id": "4",
+      "description": "The Phantom of the Opera",
+      "imageUrl": "https://picsum.photos/seed/4/600/400",
+      "imageHint": "theater stage"
+    },
+    {
+      "id": "5",
+      "description": "Indie Rock Fest 2024",
+      "imageUrl": "https://picsum.photos/seed/5/600/400",
+      "imageHint": "music festival"
+    },
+    {
+      "id": "6",
+      "description": "Sculpture Garden Tour",
+      "imageUrl": "https://picsum.photos/seed/6/600/400",
+      "imageHint": "sculpture park"
+    },
+    {
+      "id": "7",
+      "description": "Warriors vs. Lakers",
+      "imageUrl": "https://picsum.photos/seed/7/600/400",
+      "imageHint": "basketball game"
+    },
+    {
+      "id": "8",
+      "description": "Hamlet - A Modern Retelling",
+      "imageUrl": "https://picsum.photos/seed/8/600/400",
+      "imageHint": "dramatic play"
+    },
+    {
+      "id": "hero",
+      "description": "Hero image for the main page",
+      "imageUrl": "https://picsum.photos/seed/hero/1200/600",
+      "imageHint": "concert crowd"
+    }
+  ]
+}
