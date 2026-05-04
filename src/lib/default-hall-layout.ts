@@ -13,6 +13,10 @@ export interface SeatConfig {
 export interface SectionConfig {
   sectionName: string;
   rows: SeatConfig[];
+  xStart: number;
+  yStart: number;
+  angle: number;
+  arcRadius?: number;
 }
 
 // Row labels from A (front) to R (back)
@@ -21,46 +25,66 @@ const rowLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', '
 export function generateRICMainHallLayout(): SectionConfig[] {
   const sections: SectionConfig[] = [];
 
-  // Center Sections (white/neutral, vertical, centered)
-  
-  // Center Back - 3 rows × 14 seats (Rows R, Q, P)
+  // Balcony Top (Arc)
   sections.push({
-    sectionName: "Center Back",
+    sectionName: "Balcony",
+    xStart: 350,
+    yStart: 240,
+    angle: 0,
+    arcRadius: 320,
     rows: [
-      { rowId: 'R', seats: 14, zone: 'Balcony', blocked: [] },
-      { rowId: 'Q', seats: 14, zone: 'Balcony', blocked: [] },
-      { rowId: 'P', seats: 14, zone: 'Balcony', blocked: [] },
+      { rowId: 'R', seats: 20, zone: 'Balcony', blocked: [] },
+      { rowId: 'Q', seats: 20, zone: 'Balcony', blocked: [] },
+      { rowId: 'P', seats: 20, zone: 'Balcony', blocked: [] },
+      { rowId: 'O', seats: 20, zone: 'Balcony', blocked: [] },
+      { rowId: 'N', seats: 20, zone: 'Balcony', blocked: [] },
     ]
   });
 
-  // Upper Center Left - 5 rows × 5 seats (Rows O, N, M, L, K)
+  // Center Left
   sections.push({
-    sectionName: "Upper Center Left",
+    sectionName: "Center Left",
+    xStart: 240,
+    yStart: 300,
+    angle: 0,
     rows: [
-      { rowId: 'O', seats: 5, zone: 'Premium', blocked: [] },
-      { rowId: 'N', seats: 5, zone: 'Premium', blocked: [] },
-      { rowId: 'M', seats: 5, zone: 'Premium', blocked: [] },
-      { rowId: 'L', seats: 5, zone: 'Premium', blocked: [] },
-      { rowId: 'K', seats: 5, zone: 'Premium', blocked: [] },
+      { rowId: 'M', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'L', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'K', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'J', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'I', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'H', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'G', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'F', seats: 5, zone: 'Standard', blocked: [] },
     ]
   });
 
-  // Upper Center Right - 5 rows × 5 seats (Rows O, N, M, L, K) - mirror
+  // Center Right
   sections.push({
-    sectionName: "Upper Center Right",
+    sectionName: "Center Right",
+    xStart: 420,
+    yStart: 300,
+    angle: 0,
     rows: [
-      { rowId: 'O', seats: 5, zone: 'Premium', blocked: [] },
-      { rowId: 'N', seats: 5, zone: 'Premium', blocked: [] },
-      { rowId: 'M', seats: 5, zone: 'Premium', blocked: [] },
-      { rowId: 'L', seats: 5, zone: 'Premium', blocked: [] },
-      { rowId: 'K', seats: 5, zone: 'Premium', blocked: [] },
+      { rowId: 'M', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'L', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'K', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'J', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'I', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'H', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'G', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'F', seats: 5, zone: 'Standard', blocked: [] },
     ]
   });
 
-  // Center Front - 4 rows × 8 seats (Rows D, C, B, A)
+  // Center Front
   sections.push({
     sectionName: "Center Front",
+    xStart: 295,
+    yStart: 440,
+    angle: 0,
     rows: [
+      { rowId: 'E', seats: 8, zone: 'Premium', blocked: [] },
       { rowId: 'D', seats: 8, zone: 'Premium', blocked: [] },
       { rowId: 'C', seats: 8, zone: 'Premium', blocked: [] },
       { rowId: 'B', seats: 8, zone: 'Premium', blocked: [] },
@@ -68,139 +92,71 @@ export function generateRICMainHallLayout(): SectionConfig[] {
     ]
   });
 
-  // Left Sections (angled inward, pointing toward stage)
-
-  // Left Far - 9 rows × 5 seats (Rows Q, P, O, N, M, L, K, J, I)
+  // Left Top Wing
   sections.push({
-    sectionName: "Left Far",
+    sectionName: "Left Top Wing",
+    xStart: 70,
+    yStart: 180,
+    angle: 45,
     rows: [
-      { rowId: 'Q', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'P', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'O', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'N', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'M', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'L', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'K', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'J', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'I', seats: 5, zone: 'Balcony', blocked: [] },
+      { rowId: 'Q', seats: 4, zone: 'Balcony', blocked: [] },
+      { rowId: 'P', seats: 4, zone: 'Balcony', blocked: [] },
+      { rowId: 'O', seats: 4, zone: 'Balcony', blocked: [] },
+      { rowId: 'N', seats: 4, zone: 'Balcony', blocked: [] },
+      { rowId: 'M', seats: 4, zone: 'Balcony', blocked: [] },
+      { rowId: 'L', seats: 4, zone: 'Balcony', blocked: [] },
+      { rowId: 'K', seats: 4, zone: 'Balcony', blocked: [] },
     ]
   });
 
-  // Left Wing Upper - 6 rows × 6 seats (Rows O, N, M, L, K, J)
+  // Left Bottom Wing
   sections.push({
-    sectionName: "Left Wing Upper",
+    sectionName: "Left Bottom Wing",
+    xStart: 100,
+    yStart: 400,
+    angle: 45,
     rows: [
-      { rowId: 'O', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'N', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'M', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'L', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'K', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'J', seats: 6, zone: 'Standard', blocked: [] },
+      { rowId: 'G', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'F', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'E', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'D', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'C', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'B', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'A', seats: 5, zone: 'Standard', blocked: [] },
     ]
   });
 
-  // Left Wing Mid A - 4 rows × 3 seats (Rows I, H, G, F)
+  // Right Top Wing
   sections.push({
-    sectionName: "Left Wing Mid A",
+    sectionName: "Right Top Wing",
+    xStart: 700 - 70 - (4 * 20),
+    yStart: 180,
+    angle: -45,
     rows: [
-      { rowId: 'I', seats: 3, zone: 'Standard', blocked: [] },
-      { rowId: 'H', seats: 3, zone: 'Standard', blocked: [] },
-      { rowId: 'G', seats: 3, zone: 'Standard', blocked: [] },
-      { rowId: 'F', seats: 3, zone: 'Standard', blocked: [] },
+      { rowId: 'Q', seats: 4, zone: 'Balcony', blocked: [] },
+      { rowId: 'P', seats: 4, zone: 'Balcony', blocked: [] },
+      { rowId: 'O', seats: 4, zone: 'Balcony', blocked: [] },
+      { rowId: 'N', seats: 4, zone: 'Balcony', blocked: [] },
+      { rowId: 'M', seats: 4, zone: 'Balcony', blocked: [] },
+      { rowId: 'L', seats: 4, zone: 'Balcony', blocked: [] },
+      { rowId: 'K', seats: 4, zone: 'Balcony', blocked: [] },
     ]
   });
 
-  // Left Wing Mid B - 5 rows × 4 seats (Rows E, D, C, B, A)
+  // Right Bottom Wing
   sections.push({
-    sectionName: "Left Wing Mid B",
+    sectionName: "Right Bottom Wing",
+    xStart: 700 - 100 - (5 * 20),
+    yStart: 400,
+    angle: -45,
     rows: [
-      { rowId: 'E', seats: 4, zone: 'Standard', blocked: [] },
-      { rowId: 'D', seats: 4, zone: 'Standard', blocked: [] },
-      { rowId: 'C', seats: 4, zone: 'Standard', blocked: [] },
-      { rowId: 'B', seats: 4, zone: 'Standard', blocked: [] },
-      { rowId: 'A', seats: 4, zone: 'Standard', blocked: [] },
-    ]
-  });
-
-  // Left Wing Lower - 7 rows × 6 seats (Rows G, F, E, D, C, B, A)
-  sections.push({
-    sectionName: "Left Wing Lower",
-    rows: [
-      { rowId: 'G', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'F', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'E', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'D', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'C', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'B', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'A', seats: 6, zone: 'Standard', blocked: [] },
-    ]
-  });
-
-  // Right Sections (mirror of left, counter-clockwise)
-
-  // Right Far - 9 rows × 5 seats
-  sections.push({
-    sectionName: "Right Far",
-    rows: [
-      { rowId: 'Q', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'P', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'O', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'N', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'M', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'L', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'K', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'J', seats: 5, zone: 'Balcony', blocked: [] },
-      { rowId: 'I', seats: 5, zone: 'Balcony', blocked: [] },
-    ]
-  });
-
-  // Right Wing Upper - 6 rows × 6 seats
-  sections.push({
-    sectionName: "Right Wing Upper",
-    rows: [
-      { rowId: 'O', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'N', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'M', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'L', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'K', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'J', seats: 6, zone: 'Standard', blocked: [] },
-    ]
-  });
-
-  // Right Wing Mid A - 4 rows × 3 seats
-  sections.push({
-    sectionName: "Right Wing Mid A",
-    rows: [
-      { rowId: 'I', seats: 3, zone: 'Standard', blocked: [] },
-      { rowId: 'H', seats: 3, zone: 'Standard', blocked: [] },
-      { rowId: 'G', seats: 3, zone: 'Standard', blocked: [] },
-      { rowId: 'F', seats: 3, zone: 'Standard', blocked: [] },
-    ]
-  });
-
-  // Right Wing Mid B - 5 rows × 4 seats
-  sections.push({
-    sectionName: "Right Wing Mid B",
-    rows: [
-      { rowId: 'E', seats: 4, zone: 'Standard', blocked: [] },
-      { rowId: 'D', seats: 4, zone: 'Standard', blocked: [] },
-      { rowId: 'C', seats: 4, zone: 'Standard', blocked: [] },
-      { rowId: 'B', seats: 4, zone: 'Standard', blocked: [] },
-      { rowId: 'A', seats: 4, zone: 'Standard', blocked: [] },
-    ]
-  });
-
-  // Right Wing Lower - 7 rows × 6 seats
-  sections.push({
-    sectionName: "Right Wing Lower",
-    rows: [
-      { rowId: 'G', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'F', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'E', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'D', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'C', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'B', seats: 6, zone: 'Standard', blocked: [] },
-      { rowId: 'A', seats: 6, zone: 'Standard', blocked: [] },
+      { rowId: 'G', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'F', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'E', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'D', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'C', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'B', seats: 5, zone: 'Standard', blocked: [] },
+      { rowId: 'A', seats: 5, zone: 'Standard', blocked: [] },
     ]
   });
 

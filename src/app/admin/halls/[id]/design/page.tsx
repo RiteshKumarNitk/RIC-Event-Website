@@ -3,428 +3,420 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { getHall, saveHallLayout } from "../../actions";
-import { ArrowLeft, Plus, Trash2, Save, Eye, Settings, LayoutGrid } from "lucide-react";
-import Link from "next/link";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { getHall, saveHallLayout } from "../../actions";
+import {
+  Plus,
+  Trash2,
+  Save,
+  MoveUp,
+  MoveDown,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import { SectionConfig, SeatConfig, SeatZone, calculateTotalSeats } from "@/lib/default-hall-layout";
 
-type SeatZone = "VIP" | "Premium" | "Standard" | "Balcony";
-type HallRowData = { rowId: string; seats: number; zone: SeatZone; blocked: number[] };
-type HallSectionData = { sectionName: string; rows: HallRowData[] };
-
-const zoneColors: Record<SeatZone, string> = {
-  VIP: "bg-yellow-400/40 border-yellow-500 text-yellow-800 dark:text-yellow-300",
-  Premium: "bg-blue-400/40 border-blue-500 text-blue-800 dark:text-blue-300",
-  Standard: "bg-green-400/40 border-green-500 text-green-800 dark:text-green-300",
-  Balcony: "bg-gray-400/40 border-gray-500 text-gray-800 dark:text-gray-300",
+const ZONE_STYLES: Record<SeatZone, { fill: string; stroke: string; text: string; bg: string; ring: string }> = {
+  VIP: { fill: "#f472b6", stroke: "#db2777", text: "#fff", bg: "bg-pink-500", ring: "ring-pink-500/30" },
+  Premium: { fill: "#2dd4bf", stroke: "#0d9488", text: "#fff", bg: "bg-teal-500", ring: "ring-teal-500/30" },
+  Standard: { fill: "#38bdf8", stroke: "#0284c7", text: "#fff", bg: "bg-sky-500", ring: "ring-sky-500/30" },
+  Balcony: { fill: "#a78bfa", stroke: "#7c3aed", text: "#fff", bg: "bg-violet-500", ring: "ring-violet-500/30" },
 };
 
-const zoneBadgeColors: Record<SeatZone, string> = {
-  VIP: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
-  Premium: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
-  Standard: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-  Balcony: "bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-300",
-};
+const SEAT_W = 30;
+const SEAT_H = 28;
+const SEAT_GAP = 4;
+const ROW_GAP = 8;
 
-const zoneSvgColors: Record<SeatZone, string> = {
-  VIP: "#eab308",
-  Premium: "#3b82f6",
-  Standard: "#22c55e",
-  Balcony: "#8b5cf6",
-};
-
-const rowLabels = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
-
-// SVG Seat Map Configuration
-const SEAT_RADIUS = 4.5;
-const SEAT_SPACING = 10;
-const ROW_SPACING = 10;
-const VIEW_BOX = "0 0 680 530";
-const STAGE_Y = 490;
-const STAGE_WIDTH = 200;
-const STAGE_X = 240;
-
-// Section configurations with positions and angles
-const sectionConfigs = [
-  // Center Sections (no angle)
-  { name: "Center Back", rowIds: ['R', 'Q', 'P'], seatsPerRow: 14, xStart: 270, yStart: 310, angle: 0, pivotX: 305, pivotY: 340, zone: 'Balcony' as SeatZone },
-  { name: "Upper Center Left", rowIds: ['O', 'N', 'M', 'L', 'K'], seatsPerRow: 5, xStart: 215, yStart: 340, angle: 0, pivotX: 227.5, pivotY: 365, zone: 'Premium' as SeatZone },
-  { name: "Upper Center Right", rowIds: ['O', 'N', 'M', 'L', 'K'], seatsPerRow: 5, xStart: 415, yStart: 340, angle: 0, pivotX: 427.5, pivotY: 365, zone: 'Premium' as SeatZone },
-  { name: "Center Front", rowIds: ['D', 'C', 'B', 'A'], seatsPerRow: 8, xStart: 300, yStart: 450, angle: 0, pivotX: 320, pivotY: 470, zone: 'Premium' as SeatZone },
-  // Left Sections (angled clockwise)
-  { name: "Left Far", rowIds: ['Q','P','O','N','M','L','K','J','I'], seatsPerRow: 5, xStart: 50, yStart: 320, angle: 15, pivotX: 75, pivotY: 410, zone: 'Balcony' as SeatZone },
-  { name: "Left Wing Upper", rowIds: ['O','N','M','L','K','J'], seatsPerRow: 6, xStart: 90, yStart: 340, angle: 12, pivotX: 120, pivotY: 405, zone: 'Standard' as SeatZone },
-  { name: "Left Wing Mid A", rowIds: ['I','H','G','F'], seatsPerRow: 3, xStart: 130, yStart: 400, angle: 12, pivotX: 145, pivotY: 420, zone: 'Standard' as SeatZone },
-  { name: "Left Wing Mid B", rowIds: ['E','D','C','B','A'], seatsPerRow: 4, xStart: 140, yStart: 440, angle: 12, pivotX: 160, pivotY: 465, zone: 'Standard' as SeatZone },
-  { name: "Left Wing Lower", rowIds: ['G','F','E','D','C','B','A'], seatsPerRow: 6, xStart: 80, yStart: 420, angle: 20, pivotX: 110, pivotY: 475, zone: 'Standard' as SeatZone },
-];
-
-// Generate mirror right sections
-const rightSections = sectionConfigs
-  .filter(s => s.name.includes("Left") || s.name.includes("Right") === false)
-  .filter(s => s.angle !== 0)
-  .map(s => ({
-    ...s,
-    name: s.name.replace("Left", "Right"),
-    xStart: 680 - s.xStart - (s.seatsPerRow * SEAT_SPACING),
-    angle: -s.angle,
-    pivotX: 680 - s.pivotX,
-    pivotY: s.pivotY,
-  }));
-
-const allSectionConfigs = [...sectionConfigs, ...rightSections];
-
-function getSectionShortId(name: string): string {
-  const map: Record<string, string> = {
-    "Center Back": "CB",
-    "Upper Center Left": "UCL",
-    "Upper Center Right": "UCR",
-    "Center Front": "CF",
-    "Left Far": "LF",
-    "Left Wing Upper": "LWU",
-    "Left Wing Mid A": "LWMA",
-    "Left Wing Mid B": "LWMB",
-    "Left Wing Lower": "LWL",
-    "Right Far": "RF",
-    "Right Wing Upper": "RWU",
-    "Right Wing Mid A": "RWMA",
-    "Right Wing Mid B": "RWMB",
-    "Right Wing Lower": "RWL",
-  };
-  return map[name] || name.split(' ').map(w => w[0]).join('');
-}
-
-function getZonePrice(zone: SeatZone): number {
-  const prices: Record<SeatZone, number> = {
-    VIP: 2500,
-    Premium: 2000,
-    Standard: 1500,
-    Balcony: 1000,
-  };
-  return prices[zone];
-}
-
-export default function HallDesignerPage() {
-  const params = useParams();
+export default function DesignSeatsPage() {
+  const { id } = useParams() as { id: string };
   const router = useRouter();
-  const hallId = params.id as string;
   const { toast } = useToast();
 
   const [hallName, setHallName] = useState("");
-  const [sections, setSections] = useState<HallSectionData[]>([]);
+  const [sections, setSections] = useState<SectionConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [mode, setMode] = useState<"edit" | "preview">("preview");
-  const [blockMode, setBlockMode] = useState(false);
-  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-
-  const [newRowSeats, setNewRowSeats] = useState(20);
-  const [newRowZone, setNewRowZone] = useState<SeatZone>("Standard");
-  const [newRowSection, setNewRowSection] = useState(0);
-
-  const totalSeats = useMemo(() => {
-    return sections.reduce((sum, s) => sum + s.rows.reduce((r, row) => r + (row.seats - row.blocked.length), 0), 0);
-  }, [sections]);
-
-  const totalBlocked = useMemo(() => {
-    return sections.reduce((sum, s) => sum + s.rows.reduce((r, row) => r + row.blocked.length, 0), 0);
-  }, [sections]);
+  const [activeSection, setActiveSection] = useState<string>("");
+  const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set());
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    loadHall();
-  }, [hallId]);
-
-  const loadHall = async () => {
-    const res = await getHall(hallId);
-    if (res.success && res.hall) {
-      setHallName(res.hall.name);
-      const secs = res.hall.sections as any[];
-      setSections(secs.length > 0 ? secs : generateDefaultSections());
-    } else {
-      toast({ variant: "destructive", title: "Error", description: "Could not load hall." });
-    }
-    setLoading(false);
-  };
-
-  function generateDefaultSections(): HallSectionData[] {
-    return allSectionConfigs.map(cfg => ({
-      sectionName: cfg.name,
-      rows: cfg.rowIds.map(rowId => ({
-        rowId,
-        seats: cfg.seatsPerRow,
-        zone: cfg.zone,
-        blocked: [] as number[],
-      }))
-    }));
-  }
-
-  const handleAddRow = useCallback(() => {
-    setSections(prev => {
-      const updated = [...prev];
-      const section = updated[newRowSection];
-      const nextLetter = section.rows.length < 26 ? rowLabels[section.rows.length] : `R${section.rows.length + 1}`;
-      section.rows.push({
-        rowId: nextLetter,
-        seats: newRowSeats,
-        zone: newRowZone,
-        blocked: [],
-      });
-      return updated;
-    });
-  }, [newRowSeats, newRowZone, newRowSection]);
-
-  const handleToggleBlock = (sectionIdx: number, rowIdx: number, seatNum: number) => {
-    setSections(prev => {
-      const updated = [...prev];
-      const row = updated[sectionIdx].rows[rowIdx];
-      const idx = row.blocked.indexOf(seatNum);
-      if (idx >= 0) {
-        row.blocked.splice(idx, 1);
+    async function loadHall() {
+      const res = await getHall(id);
+      if (res.success && res.hall) {
+        setHallName(res.hall.name);
+        const rawSections = (res.hall.sections as any[]) || [];
+        const normalizedSections: SectionConfig[] = rawSections.map(s => ({
+          ...s,
+          rows: s.rows.map((r: any) => ({
+            ...r,
+            seats: Array.isArray(r.seats) ? r.seats.length : (typeof r.seats === 'number' ? r.seats : 0),
+            blocked: r.blocked || []
+          }))
+        }));
+        setSections(normalizedSections);
+        if (normalizedSections.length > 0) {
+          setActiveSection(normalizedSections[0].sectionName);
+        }
       } else {
-        row.blocked.push(seatNum);
+        toast({ variant: "destructive", title: "Error", description: res.error || "Failed to load hall" });
+        router.push("/admin/halls");
       }
-      return updated;
+      setLoading(false);
+    }
+    loadHall();
+  }, [id, router, toast]);
+
+  const totalSeats = calculateTotalSeats(sections);
+
+  const boundingBox = useMemo(() => {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    sections.forEach(section => {
+      if (hiddenSections.has(section.sectionName)) return;
+      section.rows.forEach((row, rowIdx) => {
+        const baseX = section.xStart;
+        const baseY = section.yStart + (rowIdx * (SEAT_H + ROW_GAP));
+        for (let i = 0; i < row.seats; i++) {
+          const x = baseX + (i * (SEAT_W + SEAT_GAP));
+          if (x < minX) minX = x;
+          if (baseY < minY) minY = baseY;
+          if (x + SEAT_W > maxX) maxX = x + SEAT_W;
+          if (baseY + SEAT_H > maxY) maxY = baseY + SEAT_H;
+        }
+      });
     });
+    if (minX === Infinity) return { minX: 0, minY: 0, width: 900, height: 600 };
+    const pad = 80;
+    return { minX: minX - pad, minY: minY - pad, width: maxX - minX + pad * 2, height: maxY - minY + pad * 2 };
+  }, [sections, hiddenSections]);
+
+  const addSection = () => {
+    const name = `Section ${sections.length + 1}`;
+    setSections([...sections, { sectionName: name, xStart: 100, yStart: 100, angle: 0, rows: [{ rowId: "A", seats: 12, zone: "Standard", blocked: [] }] }]);
+    setActiveSection(name);
   };
 
-  // Handle seat click in SVG preview - MUST be before any early returns
-  const handleSeatClick = useCallback((seatId: string, sectionIdx: number, rowIdx: number, seatNum: number) => {
-    if (mode !== "edit" || !blockMode) return;
-    
-    const newSelected = selectedSeats.includes(seatId)
-      ? selectedSeats.filter(s => s !== seatId)
-      : [...selectedSeats, seatId];
-    setSelectedSeats(newSelected);
-    
-    // Toggle blocked state
-    handleToggleBlock(sectionIdx, rowIdx, seatNum);
-  }, [mode, blockMode, selectedSeats, handleToggleBlock]);
-
-  const handleDeleteRow = (sectionIdx: number, rowIdx: number) => {
-    setSections(prev => {
-      const updated = [...prev];
-      updated[sectionIdx].rows.splice(rowIdx, 1);
-      return updated;
-    });
+  const deleteSection = (name: string) => {
+    if (sections.length <= 1) { toast({ title: "Cannot delete", description: "At least one section is required." }); return; }
+    const updated = sections.filter(s => s.sectionName !== name);
+    setSections(updated);
+    setHiddenSections(prev => { const n = new Set(prev); n.delete(name); return n; });
+    if (activeSection === name) setActiveSection(updated[0].sectionName);
   };
 
-  const handleUpdateRowSeats = (sectionIdx: number, rowIdx: number, newSeats: number) => {
-    setSections(prev => {
-      const updated = [...prev];
-      const row = updated[sectionIdx].rows[rowIdx];
-      const oldMax = row.seats;
-      row.seats = newSeats;
-      row.blocked = row.blocked.filter(b => b <= newSeats);
-      return updated;
-    });
+  const updateSectionProp = (name: string, prop: keyof SectionConfig, value: any) => {
+    setSections(sections.map(s => s.sectionName === name ? { ...s, [prop]: value } : s));
   };
 
-  const handleUpdateRowZone = (sectionIdx: number, rowIdx: number, newZone: SeatZone) => {
-    setSections(prev => {
-      const updated = [...prev];
-      updated[sectionIdx].rows[rowIdx].zone = newZone;
-      return updated;
-    });
+  const addRow = (sectionName: string) => {
+    setSections(sections.map(s => {
+      if (s.sectionName !== sectionName) return s;
+      const last = s.rows[s.rows.length - 1];
+      const nextId = last ? String.fromCharCode(last.rowId.charCodeAt(0) + 1) : "A";
+      return { ...s, rows: [...s.rows, { rowId: nextId, seats: 12, zone: "Standard", blocked: [] }] };
+    }));
   };
+
+  const deleteRow = (sectionName: string, rowId: string) => {
+    setSections(sections.map(s => s.sectionName === sectionName ? { ...s, rows: s.rows.filter(r => r.rowId !== rowId) } : s));
+  };
+
+  const moveRow = (sectionName: string, rowId: string, dir: "up" | "down") => {
+    setSections(sections.map(s => {
+      if (s.sectionName !== sectionName) return s;
+      const rows = [...s.rows];
+      const idx = rows.findIndex(r => r.rowId === rowId);
+      const newIdx = dir === "up" ? idx - 1 : idx + 1;
+      if (newIdx < 0 || newIdx >= rows.length) return s;
+      [rows[idx], rows[newIdx]] = [rows[newIdx], rows[idx]];
+      return { ...s, rows };
+    }));
+  };
+
+  const updateRowProp = (sectionName: string, rowId: string, prop: keyof SeatConfig, value: any) => {
+    setSections(sections.map(s =>
+      s.sectionName === sectionName ? { ...s, rows: s.rows.map(r => r.rowId === rowId ? { ...r, [prop]: value } : r) } : s
+    ));
+  };
+
+  const toggleSeatBlocked = useCallback((sectionName: string, rowId: string, seatIdx: number) => {
+    setSections(prev => prev.map(s => {
+      if (s.sectionName !== sectionName) return s;
+      return { ...s, rows: s.rows.map(r => r.rowId !== rowId ? r : { ...r, blocked: r.blocked.includes(seatIdx) ? r.blocked.filter(i => i !== seatIdx) : [...r.blocked, seatIdx] }) };
+    }));
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
-    const res = await saveHallLayout(hallId, { sections, totalSeats });
-    if (res.success) {
-      toast({ title: "Saved", description: `Hall layout saved. ${totalSeats} available seats.` });
-    } else {
-      toast({ variant: "destructive", title: "Error", description: res.error });
-    }
+    const res = await saveHallLayout(id, { sections, totalSeats: calculateTotalSeats(sections) });
+    if (res.success) toast({ title: "Success", description: "Seat layout saved." });
+    else toast({ variant: "destructive", title: "Error", description: res.error || "Failed to save." });
     setSaving(false);
   };
 
-  const handleAddSection = () => {
-    setSections(prev => [...prev, { sectionName: `Section ${prev.length + 1}`, rows: [] }]);
+  const toggleSectionVisibility = (name: string) => {
+    setHiddenSections(prev => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
   };
 
-  if (loading) return <div className="text-center py-12 text-muted-foreground">Loading hall...</div>;
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    setZoom(z => Math.max(0.3, Math.min(3, z + (e.deltaY > 0 ? -0.05 : 0.05))));
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0) { setIsDragging(true); setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y }); }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  };
+
+  if (loading) return <div className="p-8 text-center">Loading layout editor...</div>;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/admin/halls"><ArrowLeft className="mr-2 h-4 w-4" />Back</Link>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">{hallName}</h1>
-            <p className="text-muted-foreground text-sm">Seat Layout Designer</p>
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Top Bar */}
+      <div className="bg-white border-b px-4 py-2 flex items-center justify-between shrink-0 z-10">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => router.push("/admin/halls")}>← Back</Button>
+          <div className="border-l pl-3">
+            <h1 className="text-base font-semibold">{hallName}</h1>
+            <p className="text-xs text-muted-foreground">{totalSeats} seats • {sections.length} sections</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline">{totalSeats} available</Badge>
-          {totalBlocked > 0 && <Badge variant="destructive">{totalBlocked} blocked</Badge>}
-          <Button onClick={handleSave} disabled={saving}>
-            <Save className="mr-2 h-4 w-4" />{saving ? "Saving..." : "Save Layout"}
+          <Button onClick={handleSave} disabled={saving} size="sm" className="bg-[#F84464] hover:bg-[#F84464]/90">
+            <Save className="mr-1.5 h-3.5 w-3.5" /> {saving ? "Saving..." : "Save Layout"}
           </Button>
         </div>
       </div>
 
-      <div className="flex gap-4 mb-6">
-        <Card className="flex-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <LayoutGrid className="h-4 w-4" />Seat Map Preview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2 mb-4">
-              <Button variant={mode === "edit" ? "default" : "outline"} size="sm" onClick={() => { setMode("edit"); setSelectedSeats([]); }}>
-                <Settings className="mr-2 h-3.5 w-3.5" />Edit
-              </Button>
-              <Button variant={mode === "preview" ? "default" : "outline"} size="sm" onClick={() => { setMode("preview"); setSelectedSeats([]); }}>
-                <Eye className="mr-2 h-3.5 w-3.5" />Preview
-              </Button>
-              {mode === "edit" && (
-                <>
-                  <Separator orientation="vertical" className="h-6" />
-                  <Button variant={blockMode ? "destructive" : "outline"} size="sm" onClick={() => { setBlockMode(!blockMode); setSelectedSeats([]); }}>
-                    {blockMode ? "Block Mode ON" : "Block Mode"}
-                  </Button>
-                  <span className="text-xs text-muted-foreground ml-2">{blockMode ? "Click seats to block/unblock" : "Toggle Block Mode to edit"}</span>
-                </>
-              )}
-            </div>
-
-            {/* SVG Seat Map */}
-            <div className="overflow-x-auto pb-4">
-              <svg viewBox="0 0 680 530" className="w-full max-w-[680px] mx-auto border rounded-lg bg-background" style={{ maxHeight: '500px' }}>
-                {/* Stage */}
-                <rect x={STAGE_X} y={STAGE_Y} width={STAGE_WIDTH} height="30" rx="4" fill="#d1d5db" stroke="#9ca3af" strokeWidth="1" />
-                <text x="340" y="510" textAnchor="middle" fill="currentColor" fontSize="14" fontWeight="bold">STAGE</text>
-
-                {/* Render sections */}
-                {allSectionConfigs.map((cfg, cfgIdx) => {
-                  const sectionData = sections.find(s => s.sectionName === cfg.name);
-                  if (!sectionData) return null;
-
-                  return (
-                    <g key={cfg.name} transform={cfg.angle !== 0 ? `rotate(${cfg.angle}, ${cfg.pivotX}, ${cfg.pivotY})` : undefined}>
-                      {cfg.rowIds.map((rowId, rowIdx) => {
-                        const rowData = sectionData.rows.find(r => r.rowId === rowId);
-                        if (!rowData) return null;
-
-                        return (
-                          <g key={rowId}>
-                            {Array.from({ length: rowData.seats }).map((_, seatIdx) => {
-                              const seatNum = seatIdx + 1;
-                              const seatX = cfg.xStart + (seatIdx * SEAT_SPACING);
-                              const seatY = cfg.yStart + (rowIdx * ROW_SPACING);
-                              const isBlocked = rowData.blocked.includes(seatNum);
-                              const seatId = `${getSectionShortId(cfg.name)}-${rowId}-${seatNum}`;
-                              const fillColor = isBlocked ? "#6b7280" : zoneSvgColors[rowData.zone];
-
-                              return (
-                                <circle
-                                  key={seatNum}
-                                  cx={seatX}
-                                  cy={seatY}
-                                  r={SEAT_RADIUS}
-                                  fill={fillColor}
-                                  className={mode === "edit" && blockMode ? "cursor-pointer hover:opacity-80" : "cursor-default"}
-                                  onClick={() => mode === "edit" && blockMode && handleSeatClick(seatId, sections.indexOf(sectionData), sectionData.rows.indexOf(rowData), seatNum)}
-                                  title={`${cfg.name} - Row ${rowId}, Seat ${seatNum} - ${rowData.zone} ₹${getZonePrice(rowData.zone)}`}
-                                />
-                              );
-                            })}
-                          </g>
-                        );
-                      })}
-                    </g>
-                  );
-                })}
-              </svg>
-            </div>
-
-            {/* Legend */}
-            <div className="flex gap-4 mt-4 flex-wrap">
-              {(["Premium", "Standard", "Balcony"] as SeatZone[]).map(zone => (
-                <div key={zone} className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: zoneSvgColors[zone] }} />
-                  <span className="text-xs">{zone} (₹{getZonePrice(zone)})</span>
-                </div>
-              ))}
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-gray-500" />
-                <span className="text-xs">Blocked</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="w-56 space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Legend</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {(["VIP", "Premium", "Standard", "Balcony"] as SeatZone[]).map(zone => (
-                <div key={zone} className="flex items-center gap-2">
-                  <div className={cn("w-4 h-4 rounded-sm border", zoneColors[zone])} />
-                  <span className="text-xs">{zone}</span>
-                </div>
-              ))}
-              <Separator />
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-sm bg-red-500/40 border-red-600/60" />
-                <span className="text-xs">Blocked</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {sections.map(s => {
-                const zoneCount: Record<SeatZone, number> = { VIP: 0, Premium: 0, Standard: 0, Balcony: 0 };
-                s.rows.forEach(r => { zoneCount[r.zone] += r.seats - r.blocked.length; });
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Panel */}
+        <div className="w-72 bg-white border-r flex flex-col shrink-0 z-10">
+          <div className="p-3 border-b">
+            <h2 className="text-sm font-semibold">Hall Layout</h2>
+            <p className="text-xs text-muted-foreground">Click seats on the map to block/unblock</p>
+          </div>
+          <ScrollArea className="flex-1">
+            <div className="p-2.5 space-y-2">
+              {sections.map((section) => {
+                const isHidden = hiddenSections.has(section.sectionName);
                 return (
-                  <div key={s.sectionName} className="space-y-1">
-                    {sections.length > 1 && <div className="text-xs font-semibold">{s.sectionName}</div>}
-                    {Object.entries(zoneCount).filter(([, c]) => c > 0).map(([zone, count]) => (
-                      <div key={zone} className="flex justify-between text-xs">
-                        <Badge className={cn("text-xs px-1.5 py-0", zoneBadgeColors[zone as SeatZone])}>{zone}</Badge>
-                        <span className="text-muted-foreground">{count}</span>
+                  <Card key={section.sectionName} className={cn("border transition", section.sectionName === activeSection && !isHidden && "border-primary ring-1 ring-primary/20", isHidden && "opacity-50")}>
+                    <CardContent className="p-2.5">
+                      <div className="flex items-center justify-between mb-2">
+                        <button className="text-sm font-semibold text-left hover:text-primary" onClick={() => setActiveSection(section.sectionName)}>
+                          {section.sectionName}
+                        </button>
+                        <div className="flex gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => toggleSectionVisibility(section.sectionName)}>
+                            {isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-destructive" onClick={() => deleteSection(section.sectionName)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+
+                      {/* Position Controls */}
+                      <div className="grid grid-cols-2 gap-1.5 mb-2">
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground">X</Label>
+                          <Input type="number" value={section.xStart} onChange={e => updateSectionProp(section.sectionName, "xStart", parseInt(e.target.value) || 0)} className="h-6 text-xs" />
+                        </div>
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground">Y</Label>
+                          <Input type="number" value={section.yStart} onChange={e => updateSectionProp(section.sectionName, "yStart", parseInt(e.target.value) || 0)} className="h-6 text-xs" />
+                        </div>
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground">Angle</Label>
+                          <Input type="number" value={section.angle} onChange={e => updateSectionProp(section.sectionName, "angle", parseInt(e.target.value) || 0)} className="h-6 text-xs" />
+                        </div>
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground">Arc Radius</Label>
+                          <Input type="number" value={section.arcRadius || ""} placeholder="None" onChange={e => updateSectionProp(section.sectionName, "arcRadius", e.target.value ? parseInt(e.target.value) : undefined)} className="h-6 text-xs" />
+                        </div>
+                      </div>
+
+                      <Separator className="my-1.5" />
+
+                      {/* Rows */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-medium text-muted-foreground">Rows ({section.rows.length})</span>
+                          <Button size="sm" variant="outline" className="h-5 text-xs px-1.5" onClick={() => addRow(section.sectionName)}>
+                            <Plus className="h-3 w-3 mr-0.5" /> Add
+                          </Button>
+                        </div>
+                        {section.rows.map((row, rowIdx) => (
+                          <div key={row.rowId} className="border rounded-md p-1.5 bg-muted/10">
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="outline" className="h-5 text-[10px] px-1.5 font-mono">{row.rowId}</Badge>
+                              <Input type="number" value={row.seats} onChange={e => updateRowProp(section.sectionName, row.rowId, "seats", parseInt(e.target.value) || 0)} className="h-5 text-xs w-12" />
+                              <Select value={row.zone} onValueChange={val => updateRowProp(section.sectionName, row.rowId, "zone", val)}>
+                                <SelectTrigger className="h-5 text-xs w-20"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="VIP">VIP</SelectItem>
+                                  <SelectItem value="Premium">Premium</SelectItem>
+                                  <SelectItem value="Standard">Standard</SelectItem>
+                                  <SelectItem value="Balcony">Balcony</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <div className="flex gap-0.5 ml-auto">
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => moveRow(section.sectionName, row.rowId, "up")} disabled={rowIdx === 0}>
+                                  <MoveUp className="h-3 w-3" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => moveRow(section.sectionName, row.rowId, "down")} disabled={rowIdx === section.rows.length - 1}>
+                                  <MoveDown className="h-3 w-3" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => deleteRow(section.sectionName, row.rowId)}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 );
               })}
-              <Separator />
-              <div className="flex justify-between text-xs font-semibold">
-                <span>Available</span>
-                <span>{totalSeats}</span>
-              </div>
-            </CardContent>
-          </Card>
+              <Button variant="outline" className="w-full" onClick={addSection}>
+                <Plus className="h-4 w-4 mr-1.5" /> Add Section
+              </Button>
+            </div>
+          </ScrollArea>
 
-          {/* Section List */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Sections</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1 max-h-48 overflow-y-auto">
-              {allSectionConfigs.map(cfg => (
-                <div key={cfg.name} className="text-xs flex justify-between">
-                  <span>{cfg.name}</span>
-                  <span className="text-muted-foreground">{cfg.rowIds.length} rows × {cfg.seatsPerRow}</span>
+          {/* Legend */}
+          <div className="p-2.5 border-t bg-muted/10">
+            <div className="grid grid-cols-2 gap-1.5">
+              {(Object.keys(ZONE_STYLES) as SeatZone[]).map(zone => (
+                <div key={zone} className="flex items-center gap-1.5">
+                  <div className={cn("w-3 h-3 rounded-sm", ZONE_STYLES[zone].bg)} />
+                  <span className="text-[10px] text-muted-foreground">{zone}</span>
                 </div>
               ))}
-            </CardContent>
-          </Card>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-sm bg-gray-400" />
+                <span className="text-[10px] text-muted-foreground">Blocked</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SVG Canvas */}
+        <div
+          className="flex-1 overflow-hidden bg-zinc-900 relative cursor-grab active:cursor-grabbing"
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={() => setIsDragging(false)}
+          onMouseLeave={() => setIsDragging(false)}
+        >
+          <svg
+            viewBox={`${boundingBox.minX} ${boundingBox.minY} ${boundingBox.width} ${boundingBox.height}`}
+            className="w-full h-full"
+            style={{ transform: `scale(${zoom})`, transformOrigin: "center center", transition: "transform 100ms ease-out" }}
+          >
+            {/* Grid */}
+            <defs>
+              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#3f3f46" strokeWidth="0.5" />
+              </pattern>
+            </defs>
+            <rect x={boundingBox.minX - 500} y={boundingBox.minY - 500} width={boundingBox.width + 1000} height={boundingBox.height + 1000} fill="url(#grid)" />
+
+            {/* Stage */}
+            <g>
+              <path d="M 250 520 L 550 520 L 510 470 L 290 470 Z" fill="#27272a" stroke="#52525b" strokeWidth="2" />
+              <text x="400" y="505" textAnchor="middle" fill="#a1a1aa" fontSize="16" fontWeight="600">STAGE</text>
+            </g>
+
+            {/* Sections */}
+            {sections.map((section) => {
+              const isHidden = hiddenSections.has(section.sectionName);
+              if (isHidden) return null;
+              const isActive = section.sectionName === activeSection;
+
+              return (
+                <g key={section.sectionName} transform={section.angle !== 0 && !section.arcRadius ? `rotate(${section.angle}, ${section.xStart}, ${section.yStart})` : undefined} opacity={isActive ? 1 : 0.8}>
+                  {/* Section Label */}
+                  {!section.arcRadius && section.rows.length > 0 && (
+                    <text x={section.xStart - 10} y={section.yStart - 12} textAnchor="end" fill="#71717a" fontSize="9" fontWeight="500">{section.sectionName}</text>
+                  )}
+
+                  {/* Rows */}
+                  {section.rows.map((row, rowIdx) => {
+                    const rowY = section.yStart + (rowIdx * (SEAT_H + ROW_GAP));
+
+                    return (
+                      <g key={row.rowId}>
+                        {/* Row Label */}
+                        <text x={section.xStart - 18} y={rowY + SEAT_H / 2 + 3} textAnchor="middle" fill="#a1a1aa" fontSize="9" fontWeight="600">{row.rowId}</text>
+
+                        {/* Seats */}
+                        {Array.from({ length: row.seats }).map((_, seatIdx) => {
+                          const seatNum = seatIdx + 1;
+                          const seatX = section.xStart + (seatIdx * (SEAT_W + SEAT_GAP));
+                          const isBlocked = row.blocked.includes(seatNum);
+                          const style = ZONE_STYLES[row.zone];
+
+                          return (
+                            <g key={seatNum} className="cursor-pointer" onClick={() => toggleSeatBlocked(section.sectionName, row.rowId, seatNum)}>
+                              <rect x={seatX} y={rowY} width={SEAT_W} height={SEAT_H} rx="5"
+                                fill={isBlocked ? "#52525b" : style.fill}
+                                stroke={isBlocked ? "#71717a" : style.stroke}
+                                strokeWidth={isActive ? 2 : 1.5}
+                                className="hover:brightness-110 transition"
+                              />
+                              <text x={seatX + SEAT_W / 2} y={rowY + SEAT_H / 2 + 3} textAnchor="middle"
+                                fill={isBlocked ? "#a1a1aa" : style.text}
+                                fontSize="8" fontWeight="700" className="pointer-events-none select-none"
+                              >{seatNum}</text>
+                            </g>
+                          );
+                        })}
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* Zoom Controls */}
+          <div className="absolute bottom-4 right-4 flex flex-col gap-1">
+            <Button variant="secondary" size="icon" className="h-8 w-8 shadow-lg" onClick={() => setZoom(z => Math.min(3, z + 0.1))}><ZoomIn className="h-4 w-4" /></Button>
+            <Button variant="secondary" size="icon" className="h-8 w-8 shadow-lg" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}><Maximize2 className="h-4 w-4" /></Button>
+            <Button variant="secondary" size="icon" className="h-8 w-8 shadow-lg" onClick={() => setZoom(z => Math.max(0.3, z - 0.1))}><ZoomOut className="h-4 w-4" /></Button>
+          </div>
+
+          {/* Zoom Badge */}
+          <div className="absolute bottom-4 left-4 bg-zinc-800 text-zinc-200 text-xs px-2 py-1 rounded-md">
+            {Math.round(zoom * 100)}%
+          </div>
         </div>
       </div>
     </div>
