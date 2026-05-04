@@ -75,7 +75,16 @@ export default function DesignSeatsPage() {
             blocked: r.blocked || []
           }))
         }));
-        setSections(normalizedSections);
+        const finalSections =
+          normalizedSections.length === 0
+            ? getDefaultCinemaLayout()
+            : normalizedSections;
+
+        setSections(finalSections);
+
+        if (finalSections.length > 0) {
+          setActiveSection(finalSections[0].sectionName);
+        }
         if (normalizedSections.length > 0) {
           setActiveSection(normalizedSections[0].sectionName);
         }
@@ -89,26 +98,50 @@ export default function DesignSeatsPage() {
   }, [id, router, toast]);
 
   const totalSeats = calculateTotalSeats(sections);
-
   const boundingBox = useMemo(() => {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
     sections.forEach(section => {
       if (hiddenSections.has(section.sectionName)) return;
+
       section.rows.forEach((row, rowIdx) => {
-        const baseX = section.xStart;
-        const baseY = section.yStart + (rowIdx * (SEAT_H + ROW_GAP));
-        for (let i = 0; i < row.seats; i++) {
-          const x = baseX + (i * (SEAT_W + SEAT_GAP));
-          if (x < minX) minX = x;
-          if (baseY < minY) minY = baseY;
-          if (x + SEAT_W > maxX) maxX = x + SEAT_W;
-          if (baseY + SEAT_H > maxY) maxY = baseY + SEAT_H;
+        const totalSeats = row.seats;
+        const centerIndex = (totalSeats - 1) / 2;
+
+        for (let i = 0; i < totalSeats; i++) {
+          let x = section.xStart + (i * (SEAT_W + SEAT_GAP));
+          let y = section.yStart + (rowIdx * (SEAT_H + ROW_GAP));
+
+          // 🔥 ARC SUPPORT
+          if (section.arcRadius) {
+            const angleSpread = 0.8;
+            const angleStep = angleSpread / totalSeats;
+            const angle = (i - centerIndex) * angleStep;
+
+            const radius = section.arcRadius + rowIdx * 20;
+
+            x = section.xStart + Math.sin(angle) * radius;
+            const baseY = section.yStart + (rowIdx * (SEAT_H + ROW_GAP));
+            y = baseY + Math.cos(angle) * 10;
+          }
+
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x + SEAT_W);
+          maxY = Math.max(maxY, y + SEAT_H);
         }
       });
     });
+
     if (minX === Infinity) return { minX: 0, minY: 0, width: 900, height: 600 };
-    const pad = 80;
-    return { minX: minX - pad, minY: minY - pad, width: maxX - minX + pad * 2, height: maxY - minY + pad * 2 };
+
+    const pad = 120;
+    return {
+      minX: minX - pad,
+      minY: minY - pad,
+      width: maxX - minX + pad * 2,
+      height: maxY - minY + pad * 2
+    };
   }, [sections, hiddenSections]);
 
   const addSection = () => {
@@ -129,6 +162,43 @@ export default function DesignSeatsPage() {
     setSections(sections.map(s => s.sectionName === name ? { ...s, [prop]: value } : s));
   };
 
+  function getDefaultCinemaLayout() {
+    return [
+      {
+        sectionName: "Left",
+        xStart: 250,
+        yStart: 120,
+        arcRadius: 220,
+        angle: -10,
+        rows: generateRows(6, 10, "Standard"),
+      },
+      {
+        sectionName: "Center",
+        xStart: 450,
+        yStart: 100,
+        arcRadius: 260,
+        angle: 0,
+        rows: generateRows(8, 14, "Premium"),
+      },
+      {
+        sectionName: "Right",
+        xStart: 650,
+        yStart: 120,
+        arcRadius: 220,
+        angle: 10,
+        rows: generateRows(6, 10, "Standard"),
+      },
+    ];
+  }
+
+  function generateRows(count: number, seats: number, zone: SeatZone) {
+    return Array.from({ length: count }).map((_, i) => ({
+      rowId: String.fromCharCode(65 + i),
+      seats,
+      zone,
+      blocked: [],
+    }));
+  }
   const addRow = (sectionName: string) => {
     setSections(sections.map(s => {
       if (s.sectionName !== sectionName) return s;
@@ -361,7 +431,7 @@ export default function DesignSeatsPage() {
               const isActive = section.sectionName === activeSection;
 
               return (
-                <g key={section.sectionName} transform={section.angle !== 0 && !section.arcRadius ? `rotate(${section.angle}, ${section.xStart}, ${section.yStart})` : undefined} opacity={isActive ? 1 : 0.8}>
+                <g key={section.sectionName} transform={section.angle ? `rotate(${section.angle}, ${section.xStart}, ${section.yStart})` : undefined} opacity={isActive ? 1 : 0.8}>
                   {/* Section Label */}
                   {!section.arcRadius && section.rows.length > 0 && (
                     <text x={section.xStart - 10} y={section.yStart - 12} textAnchor="end" fill="#71717a" fontSize="9" fontWeight="500">{section.sectionName}</text>
@@ -369,32 +439,77 @@ export default function DesignSeatsPage() {
 
                   {/* Rows */}
                   {section.rows.map((row, rowIdx) => {
-                    const rowY = section.yStart + (rowIdx * (SEAT_H + ROW_GAP));
+                    const baseY = section.yStart + (rowIdx * (SEAT_H + ROW_GAP));
 
                     return (
                       <g key={row.rowId}>
                         {/* Row Label */}
-                        <text x={section.xStart - 18} y={rowY + SEAT_H / 2 + 3} textAnchor="middle" fill="#a1a1aa" fontSize="9" fontWeight="600">{row.rowId}</text>
+                        <text
+                          x={section.xStart - 20}
+                          y={baseY + SEAT_H / 2 + 3}
+                          textAnchor="middle"
+                          fill="#a1a1aa"
+                          fontSize="9"
+                          fontWeight="600"
+                        >
+                          {row.rowId}
+                        </text>
 
                         {/* Seats */}
                         {Array.from({ length: row.seats }).map((_, seatIdx) => {
                           const seatNum = seatIdx + 1;
-                          const seatX = section.xStart + (seatIdx * (SEAT_W + SEAT_GAP));
+
+                          const totalSeats = row.seats;
+                          const centerIndex = (totalSeats - 1) / 2;
+
+                          let seatX = section.xStart + (seatIdx * (SEAT_W + SEAT_GAP));
+                          let seatY = baseY;
+
+                          // 🔥 ARC CALCULATION
+                          if (section.arcRadius) {
+                            const angleSpread = 0.8;
+                            const angleStep = angleSpread / totalSeats;
+                            const angle = (seatIdx - centerIndex) * angleStep;
+
+                            const radius = section.arcRadius + rowIdx * 22;
+
+                            seatX = section.xStart + Math.sin(angle) * radius;
+                            // seatY = section.yStart + Math.cos(angle) * radius;
+                            seatY = baseY + Math.cos(angle) * 10;
+                          }
+
+                          const rotateDeg = (seatIdx - centerIndex) * 12;
+
                           const isBlocked = row.blocked.includes(seatNum);
                           const style = ZONE_STYLES[row.zone];
 
                           return (
-                            <g key={seatNum} className="cursor-pointer" onClick={() => toggleSeatBlocked(section.sectionName, row.rowId, seatNum)}>
-                              <rect x={seatX} y={rowY} width={SEAT_W} height={SEAT_H} rx="5"
+                            <g
+                              key={seatNum}
+                              transform={section.arcRadius ? `rotate(${rotateDeg}, ${seatX}, ${seatY})` : ""}
+                              onClick={() => toggleSeatBlocked(section.sectionName, row.rowId, seatNum)}
+                              className="cursor-pointer"
+                            >
+                              <rect
+                                x={seatX}
+                                y={seatY}
+                                width={SEAT_W}
+                                height={SEAT_H}
+                                rx="6"
                                 fill={isBlocked ? "#52525b" : style.fill}
                                 stroke={isBlocked ? "#71717a" : style.stroke}
-                                strokeWidth={isActive ? 2 : 1.5}
-                                className="hover:brightness-110 transition"
+                                strokeWidth="1.5"
                               />
-                              <text x={seatX + SEAT_W / 2} y={rowY + SEAT_H / 2 + 3} textAnchor="middle"
+                              <text
+                                x={seatX + SEAT_W / 2}
+                                y={seatY + SEAT_H / 2 + 3}
+                                textAnchor="middle"
                                 fill={isBlocked ? "#a1a1aa" : style.text}
-                                fontSize="8" fontWeight="700" className="pointer-events-none select-none"
-                              >{seatNum}</text>
+                                fontSize="8"
+                                fontWeight="700"
+                              >
+                                {seatNum}
+                              </text>
                             </g>
                           );
                         })}
