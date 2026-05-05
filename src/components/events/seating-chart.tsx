@@ -9,16 +9,17 @@ import type { AuditoriumLayoutConfig, SeatCategory, SeatBlock } from "@/lib/seat
 import { ZoomIn, ZoomOut, Maximize2, MousePointer2 } from "lucide-react";
 
 const CATEGORY_COLORS: Record<SeatCategory, { fill: string; stroke: string; text: string; bg: string; border: string }> = {
-  Standard: { fill: "#E0F2FE", stroke: "#0284c7", text: "#0369a1", bg: "bg-sky-500", border: "border-sky-200" },
-  Premium: { fill: "#CCFBF1", stroke: "#0d9488", text: "#0f766e", bg: "bg-teal-500", border: "border-teal-200" },
-  VIP: { fill: "#FCE7F3", stroke: "#db2777", text: "#be185d", bg: "bg-pink-500", border: "border-pink-200" },
-  Balcony: { fill: "#EDE9FE", stroke: "#7c3aed", text: "#6d28d9", bg: "bg-violet-500", border: "border-violet-200" },
+  Standard: { fill: "#e2e8f0", stroke: "#e2e8f0", text: "transparent", bg: "bg-slate-200", border: "border-slate-200" },
+  Premium: { fill: "#ffffff", stroke: "#06b6d4", text: "#06b6d4", bg: "bg-cyan-500", border: "border-cyan-200" },
+  VIP: { fill: "#ffffff", stroke: "#ec4899", text: "#ec4899", bg: "bg-pink-500", border: "border-pink-200" },
+  Balcony: { fill: "#ffffff", stroke: "#a855f7", text: "#a855f7", bg: "bg-purple-500", border: "border-purple-200" },
 };
 
-const SEAT_W = 18;
-const SEAT_H = 16;
-const SEAT_GAP = 2;
-const ROW_GAP = 4;
+const SEAT_R = 9;
+const SEAT_GAP = 3;
+const ROW_GAP = 6;
+const SEAT_W = SEAT_R * 2;
+const SEAT_H = SEAT_R * 2;
 
 interface SeatState {
   id: string;
@@ -106,7 +107,7 @@ export function SeatingChart({
   };
 
   const totalWidth = 1000;
-  const totalHeight = 600;
+  const totalHeight = 700;
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-white">
@@ -168,16 +169,19 @@ export function SeatingChart({
           }}
         >
           {/* Stage at Bottom */}
-          <g transform={`translate(${totalWidth/2 - 150}, ${totalHeight - 60})`}>
-             <path d="M 0 40 L 300 40 L 260 0 L 40 0 Z" fill="#333" />
-             <text x="150" y="28" textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800" letterSpacing="0.4em">STAGE</text>
+          <g transform={`translate(${totalWidth/2 - 200}, ${totalHeight - 100})`}>
+             <path d="M 0 100 L 400 100 L 320 0 L 80 0 Z" fill="transparent" stroke="#cbd5e1" strokeWidth="1.5" />
+             <text x="200" y="60" textAnchor="middle" fill="#0f172a" fontSize="24" fontWeight="600" letterSpacing="0.1em">STAGE</text>
           </g>
+
+          {/* BALCONY Text */}
+          <text x={totalWidth/2} y={180} textAnchor="middle" fill="#0f172a" fontSize="20" fontWeight="600" letterSpacing="0.1em">BALCONY</text>
 
           {layout.blocks.map((block) => (
             <g key={block.id} transform={`translate(${block.position.left}, ${block.position.top}) rotate(${block.rotation})`}>
               {Array.from({ length: block.rows }).map((_, r) => {
                 const rowLabel = String.fromCharCode(65 + r + (block.rowLabelOffset || 0));
-                const rowY = r * (SEAT_H + ROW_GAP);
+                const rowY = (block.rows - 1 - r) * (SEAT_H + ROW_GAP);
                 const rowCols = block.colsPerRow ? block.colsPerRow[r] : block.cols;
                 const maxColsInBlock = block.colsPerRow ? Math.max(...block.colsPerRow) : block.cols;
                 
@@ -189,7 +193,9 @@ export function SeatingChart({
                 return (
                   <g key={r}>
                     {/* Row Label (Left) */}
-                    <text x={centeringOffset - 20} y={rowY + SEAT_H / 2 + 2} textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="700">{rowLabel}</text>
+                    {!block.hideLeftLabel && (
+                      <text x={centeringOffset - 20} y={rowY + SEAT_H / 2 + 2} textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="700">{rowLabel}</text>
+                    )}
 
                     {Array.from({ length: rowCols }).map((_, c) => {
                       const seatNum = c + 1 + (block.colOffset || 0);
@@ -217,24 +223,22 @@ export function SeatingChart({
                             handleSelectSeat(seatState);
                           }}
                         >
-                          <rect
-                            x={seatX}
-                            y={rowY}
-                            width={SEAT_W}
-                            height={SEAT_H}
-                            rx="4"
+                          <circle
+                            cx={seatX + SEAT_R}
+                            cy={rowY + SEAT_R}
+                            r={SEAT_R}
                             fill={isSelected ? "#F84464" : colors.fill}
                             stroke={isSelected ? "#dc2626" : colors.stroke}
-                            strokeWidth={isSelected ? 1.5 : 0.8}
+                            strokeWidth={isSelected ? 1.5 : 1}
                             className="transition-colors duration-200"
                           />
                           <text
-                            x={seatX + SEAT_W / 2}
-                            y={rowY + SEAT_H / 2 + 2}
+                            x={seatX + SEAT_R}
+                            y={rowY + SEAT_R + 2.5}
                             textAnchor="middle"
                             fill={isSelected ? "#fff" : colors.text}
-                            fontSize="6"
-                            fontWeight="700"
+                            fontSize="7"
+                            fontWeight="600"
                             className="pointer-events-none select-none"
                           >
                             {seatNum}
@@ -244,7 +248,9 @@ export function SeatingChart({
                     })}
 
                     {/* Row Label (Right) */}
-                    <text x={centeringOffset + rowWidth + 15} y={rowY + SEAT_H / 2 + 2} textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="700">{rowLabel}</text>
+                    {!block.hideRightLabel && (
+                      <text x={centeringOffset + rowWidth + 15} y={rowY + SEAT_H / 2 + 2} textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="700">{rowLabel}</text>
+                    )}
                   </g>
                 );
               })}

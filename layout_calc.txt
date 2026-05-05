@@ -1,0 +1,13 @@
+// Front Tier (radius 1000)
+{ id: 'FLW', position: { top: 494, left: 121 }, rotation: -16 },
+{ id: 'FC', position: { top: 430, left: 311 }, rotation: 0 },
+{ id: 'FRW', position: { top: 453, left: 738 }, rotation: 16 },
+// Middle Tier (radius 1150)
+{ id: 'MLW', position: { top: 257, left: 137 }, rotation: -13 },
+{ id: 'MCL', position: { top: 219, left: 311 }, rotation: -4.5 },
+{ id: 'MCR', position: { top: 206, left: 522 }, rotation: 4.5 },
+{ id: 'MRW', position: { top: 228, left: 740 }, rotation: 13 },
+// Balcony Tier (radius 1400)
+{ id: 'BLW', position: { top: 93, left: 56 }, rotation: -13 },
+{ id: 'BC', position: { top: 30, left: 290 }, rotation: 0 },
+{ id: 'BRW', position: { top: 45, left: 740 }, rotation: 13 },
