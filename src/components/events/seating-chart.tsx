@@ -9,7 +9,7 @@ import type { AuditoriumLayoutConfig, SeatCategory, SeatBlock } from "@/lib/seat
 import { ZoomIn, ZoomOut, Maximize2, MousePointer2 } from "lucide-react";
 
 const CATEGORY_COLORS: Record<SeatCategory, { fill: string; stroke: string; text: string; bg: string; border: string }> = {
-  Standard: { fill: "#e2e8f0", stroke: "#e2e8f0", text: "transparent", bg: "bg-slate-200", border: "border-slate-200" },
+  Standard: { fill: "#ffffff", stroke: "#22c55e", text: "#22c55e", bg: "bg-green-500", border: "border-green-200" },
   Premium: { fill: "#ffffff", stroke: "#06b6d4", text: "#06b6d4", bg: "bg-cyan-500", border: "border-cyan-200" },
   VIP: { fill: "#ffffff", stroke: "#ec4899", text: "#ec4899", bg: "bg-pink-500", border: "border-pink-200" },
   Balcony: { fill: "#ffffff", stroke: "#a855f7", text: "#a855f7", bg: "bg-purple-500", border: "border-purple-200" },
@@ -106,7 +106,7 @@ export function SeatingChart({
     setPan({ x: 0, y: 0 });
   };
 
-  const totalWidth = 1000;
+  const totalWidth = 1200;
   const totalHeight = 700;
 
   return (
@@ -186,9 +186,19 @@ export function SeatingChart({
                 const maxColsInBlock = block.colsPerRow ? Math.max(...block.colsPerRow) : block.cols;
                 
                 // Centering logic for trapezoidal rows
-                const rowWidth = rowCols * (SEAT_W + SEAT_GAP);
-                const blockWidth = maxColsInBlock * (SEAT_W + SEAT_GAP);
-                const centeringOffset = (blockWidth - rowWidth) / 2;
+                const seatTotalWidth = SEAT_W + SEAT_GAP;
+                const rowWidth = rowCols * seatTotalWidth;
+                const blockWidth = maxColsInBlock * seatTotalWidth;
+                let centeringOffset = 0;
+                if (block.align === "right") {
+                  centeringOffset = blockWidth - rowWidth;
+                } else if (block.align === "left") {
+                  centeringOffset = 0;
+                } else {
+                  // Grid-aligned centering to prevent staggered half-seats
+                  const differenceInSeats = maxColsInBlock - rowCols;
+                  centeringOffset = Math.floor(differenceInSeats / 2) * seatTotalWidth;
+                }
 
                 return (
                   <g key={r}>
@@ -198,7 +208,8 @@ export function SeatingChart({
                     )}
 
                     {Array.from({ length: rowCols }).map((_, c) => {
-                      const seatNum = c + 1 + (block.colOffset || 0);
+                      const rowOffset = block.colOffsetsPerRow ? block.colOffsetsPerRow[r] : (block.colOffset || 0);
+                      const seatNum = c + 1 + rowOffset;
                       const seatX = centeringOffset + (c * (SEAT_W + SEAT_GAP));
                       const seatId = `${block.id}-${rowLabel}-${seatNum}`;
                       const isSelected = selectedSeats.some(s => s.id === seatId);
@@ -217,18 +228,20 @@ export function SeatingChart({
                       return (
                         <g
                           key={c}
-                          className="cursor-pointer"
+                          className={seatState.isBooked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleSelectSeat(seatState);
+                            if (!seatState.isBooked) {
+                              handleSelectSeat(seatState);
+                            }
                           }}
                         >
                           <circle
                             cx={seatX + SEAT_R}
                             cy={rowY + SEAT_R}
                             r={SEAT_R}
-                            fill={isSelected ? "#F84464" : colors.fill}
-                            stroke={isSelected ? "#dc2626" : colors.stroke}
+                            fill={seatState.isBooked ? "#e2e8f0" : isSelected ? "#F84464" : colors.fill}
+                            stroke={seatState.isBooked ? "#cbd5e1" : isSelected ? "#dc2626" : colors.stroke}
                             strokeWidth={isSelected ? 1.5 : 1}
                             className="transition-colors duration-200"
                           />
@@ -236,7 +249,7 @@ export function SeatingChart({
                             x={seatX + SEAT_R}
                             y={rowY + SEAT_R + 2.5}
                             textAnchor="middle"
-                            fill={isSelected ? "#fff" : colors.text}
+                            fill={seatState.isBooked ? "transparent" : isSelected ? "#fff" : colors.text}
                             fontSize="7"
                             fontWeight="600"
                             className="pointer-events-none select-none"

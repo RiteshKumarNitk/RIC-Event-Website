@@ -24,9 +24,11 @@ export interface SeatBlock {
   };
   rotation: number; // degrees
   rowLabelOffset?: number; // 0 for A, 1 for B, etc.
-  colOffset?: number; // Starting number for first column
+  colOffset?: number; // Starting number for first column (legacy)
+  colOffsetsPerRow?: number[]; // Dynamic starting number for each row
   hideLeftLabel?: boolean;
   hideRightLabel?: boolean;
+  align?: "left" | "center" | "right"; // Alignment of seats within the block
 }
 
 export interface AuditoriumLayoutConfig {
@@ -83,20 +85,19 @@ export const RIC_AUDITORIUM: AuditoriumLayoutConfig = {
   name: "RIC Auditorium",
   blocks: [
     // ── FRONT TIER (A-E) ──
-    { id: "FRW", category: "VIP", rows: 5, cols: 7, colsPerRow: [4, 5, 6, 7, 7], position: { top: 453, left: 738 }, rotation: 16, rowLabelOffset: 0, colOffset: 25, hideRightLabel: true },
-    { id: "FC", category: "Standard", rows: 5, cols: 12, colsPerRow: [10, 12, 14, 16, 18], position: { top: 430, left: 311 }, rotation: 0, rowLabelOffset: 0, colOffset: 7, hideLeftLabel: true, hideRightLabel: true },
-    { id: "FLW", category: "Standard", rows: 5, cols: 7, colsPerRow: [4, 5, 6, 7, 7], position: { top: 494, left: 121 }, rotation: -16, rowLabelOffset: 0, colOffset: 0, hideLeftLabel: true },
+    { id: "FLW", category: "Standard", rows: 5, cols: 15, colsPerRow: [14, 15, 15, 15, 15], colOffsetsPerRow: [0, 0, 0, 0, 0], position: { top: 550, left: 131 }, rotation: -16, rowLabelOffset: 0, colOffset: 0, hideLeftLabel: true, align: "right" },
+    { id: "FC", category: "Standard", rows: 5, cols: 7, colsPerRow: [7, 6, 6, 6, 6], colOffsetsPerRow: [14, 15, 15, 15, 15], position: { top: 440, left: 526 }, rotation: 0, rowLabelOffset: 0, colOffset: 7, hideLeftLabel: true, hideRightLabel: true, align: "center" },
+    { id: "FRW", category: "VIP", rows: 5, cols: 21, colsPerRow: [21, 21, 20, 14, 15], colOffsetsPerRow: [21, 21, 21, 21, 21], position: { top: 453, left: 753 }, rotation: 16, rowLabelOffset: 0, colOffset: 25, hideRightLabel: true, align: "left" },
 
     // ── MIDDLE TIER (F-M) ──
-    { id: "MLW", category: "Standard", rows: 8, cols: 6, colsPerRow: [4, 4, 5, 5, 6, 6, 6, 6], position: { top: 257, left: 137 }, rotation: -13, rowLabelOffset: 5, colOffset: 0, hideLeftLabel: true },
-    { id: "MCL", category: "Standard", rows: 8, cols: 6, colsPerRow: [5, 5, 6, 6, 7, 7, 8, 8], position: { top: 219, left: 311 }, rotation: -4.5, rowLabelOffset: 5, colOffset: 6, hideLeftLabel: true, hideRightLabel: true },
-    { id: "MCR", category: "Standard", rows: 8, cols: 6, colsPerRow: [5, 5, 6, 6, 7, 7, 8, 8], position: { top: 206, left: 522 }, rotation: 4.5, rowLabelOffset: 5, colOffset: 14, hideLeftLabel: true, hideRightLabel: true },
-    { id: "MRW", category: "Premium", rows: 8, cols: 6, colsPerRow: [4, 4, 5, 5, 6, 6, 6, 6], position: { top: 228, left: 740 }, rotation: 13, rowLabelOffset: 5, colOffset: 22, hideRightLabel: true },
+    { id: "ML", category: "Standard", rows: 8, cols: 12, colsPerRow: [9, 10, 10, 11, 11, 12, 5, 10], colOffsetsPerRow: [0, 0, 0, 0, 0, 0, 0, 0], position: { top: 290, left: 78 }, rotation: -13, rowLabelOffset: 5, colOffset: 0, hideLeftLabel: true, align: "right" },
+    { id: "MC", category: "Standard", rows: 8, cols: 20, colsPerRow: [16, 16, 16, 19, 20, 20, 10, 20], colOffsetsPerRow: [9, 10, 10, 11, 11, 12, 5, 10], position: { top: 219, left: 390 }, rotation: 0, rowLabelOffset: 5, colOffset: 0, hideLeftLabel: true, hideRightLabel: true, align: "center" },
+    { id: "MR", category: "Standard", rows: 8, cols: 12, colsPerRow: [9, 10, 10, 11, 11, 12, 5, 10], colOffsetsPerRow: [25, 26, 26, 30, 31, 32, 15, 30], position: { top: 230, left: 870 }, rotation: 13, rowLabelOffset: 5, colOffset: 0, hideRightLabel: true, align: "left" },
 
     // ── BALCONY (N-R) ──
-    { id: "BLW", category: "Balcony", rows: 5, cols: 10, colsPerRow: [6, 7, 8, 9, 10], position: { top: 93, left: 56 }, rotation: -13, rowLabelOffset: 10, colOffset: 0, hideLeftLabel: true },
-    { id: "BC", category: "Standard", rows: 5, cols: 20, colsPerRow: [14, 16, 18, 20, 20], position: { top: 30, left: 290 }, rotation: 0, rowLabelOffset: 13, colOffset: 10, hideLeftLabel: true, hideRightLabel: true },
-    { id: "BRW", category: "Balcony", rows: 5, cols: 10, colsPerRow: [6, 7, 8, 9, 10], position: { top: 45, left: 740 }, rotation: 13, rowLabelOffset: 5, colOffset: 30, hideRightLabel: true },
+    { id: "BLW", category: "Balcony", rows: 5, cols: 12, colsPerRow: [11, 11, 12, 12, 6], colOffsetsPerRow: [0, 0, 0, 0, 0], position: { top: 100, left: 16 }, rotation: -13, rowLabelOffset: 10, colOffset: 0, hideLeftLabel: true, align: "right" },
+    { id: "BC", category: "Standard", rows: 5, cols: 24, colsPerRow: [23, 24, 24, 24, 13], colOffsetsPerRow: [11, 11, 12, 12, 6], position: { top: 30, left: 348 }, rotation: 0, rowLabelOffset: 13, colOffset: 10, hideLeftLabel: true, hideRightLabel: true, align: "center" },
+    { id: "BRW", category: "Balcony", rows: 5, cols: 12, colsPerRow: [11, 11, 12, 12, 6], colOffsetsPerRow: [34, 35, 36, 36, 19], position: { top: 45, left: 932 }, rotation: 13, rowLabelOffset: 5, colOffset: 30, hideRightLabel: true, align: "left" },
   ],
 };
 
