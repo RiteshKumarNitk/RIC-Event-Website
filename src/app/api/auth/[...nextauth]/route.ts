@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 // Force reload after prisma.ts update
 import bcrypt from 'bcryptjs';
 
+export const dynamic = 'force-dynamic';
+
 const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: NextAuthPrismaAdapter(prisma),
   providers: [
