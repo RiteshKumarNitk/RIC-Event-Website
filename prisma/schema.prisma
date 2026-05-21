@@ -59,6 +59,17 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+// Site Content for Home Page (backend-updatable)
+model SiteContent {
+  id        String   @id @default(cuid())
+  section   String   @unique // "hero", "stats", "about", "venues", "cta"
+  title     String?
+  subtitle  String?
+  content   Json     // Flexible JSON based on section
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Application Models
 model Event {
   id           String   @id @default(cuid())
@@ -75,6 +86,19 @@ model Event {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   bookings     Booking[]
+  blockedSeats BlockedSeat[]
+}
+
+// Admin-managed blocked seats (unavailable for booking)
+model BlockedSeat {
+  id        String   @id @default(cuid())
+  eventId   String
+  seatId    String   // e.g. "MEM-A-1"
+  reason    String?  // "maintenance", "vip-reserved", etc.
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, seatId])
 }
 
 model Member {
@@ -90,6 +114,7 @@ model Member {
   dob              DateTime
   address          String
   emergencyContact String
+  userId           String?  @unique // Linked website account
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
@@ -105,15 +130,41 @@ model Hall {
 }
 
 model Booking {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
   eventId     String
   eventName   String
   eventDate   DateTime
-  attendees   Json     // Array of Attendee objects
+  attendees   Json      // Array of Attendee objects
   total       Float
-  bookingDate DateTime @default(now())
+  bookingDate DateTime  @default(now())
+  paymentInfo Json?     // { method: "phonepe"|"gpay"|"paytm"|"card"|"cash", upiTransactionId?: string, upiRefNo?: string, status: "pending"|"completed"|"failed" }
   
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkIns    CheckIn[]
+}
+
+// Fee configuration (singleton — only one active row)
+model FeeConfig {
+  id                String   @id @default(cuid())
+  gstPercentage     Float    @default(18)
+  platformFeeType   String   @default("PERCENTAGE") // "PERCENTAGE" | "FLAT"
+  platformFeeValue  Float    @default(2.5)
+  active            Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+}
+
+model CheckIn {
+  id           String   @id @default(cuid())
+  bookingId    String
+  eventId      String
+  seatId       String
+  attendeeName String
+  checkedInAt  DateTime @default(now())
+  checkedBy    String?
+  
+  booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, seatId])
 }

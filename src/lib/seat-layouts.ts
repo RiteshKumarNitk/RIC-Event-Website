@@ -1,6 +1,6 @@
 // ─── TYPES & INTERFACES ───
 
-export type SeatCategory = "Standard" | "Premium" | "VIP" | "Balcony";
+export type SeatCategory = "Standard" | "Premium" | "VIP" | "Balcony" | "Members";
 
 export interface Seat {
   id: string;
@@ -29,6 +29,7 @@ export interface SeatBlock {
   hideLeftLabel?: boolean;
   hideRightLabel?: boolean;
   align?: "left" | "center" | "right"; // Alignment of seats within the block
+  membersOnly?: boolean; // Only visible to verified members
 }
 
 export interface AuditoriumLayoutConfig {
@@ -53,6 +54,7 @@ export const DEFAULT_PRICES: Record<SeatCategory, number> = {
   Premium: 599,
   VIP: 999,
   Balcony: 449,
+  Members: 0,
 };
 
 export const SEAT_LAYOUTS: Record<string, SeatLayoutConfig> = {
@@ -84,6 +86,9 @@ export const SEAT_LAYOUTS: Record<string, SeatLayoutConfig> = {
 export const RIC_AUDITORIUM: AuditoriumLayoutConfig = {
   name: "RIC Auditorium",
   blocks: [
+    // ── MEMBERS EXCLUSIVE (Front rows, free for members) ──
+    { id: "MEM", category: "Members", rows: 3, cols: 16, colsPerRow: [14, 16, 16], colOffsetsPerRow: [0, 0, 0], position: { top: 608, left: 380 }, rotation: 0, rowLabelOffset: 0, colOffset: 0, align: "center", membersOnly: true },
+
     // ── FRONT TIER (A-E) ──
     { id: "FLW", category: "Standard", rows: 5, cols: 15, colsPerRow: [14, 15, 15, 15, 15], colOffsetsPerRow: [0, 0, 0, 0, 0], position: { top: 550, left: 131 }, rotation: -16, rowLabelOffset: 0, colOffset: 0, hideLeftLabel: true, align: "right" },
     { id: "FC", category: "Standard", rows: 5, cols: 7, colsPerRow: [7, 6, 6, 6, 6], colOffsetsPerRow: [14, 15, 15, 15, 15], position: { top: 440, left: 526 }, rotation: 0, rowLabelOffset: 0, colOffset: 7, hideLeftLabel: true, hideRightLabel: true, align: "center" },

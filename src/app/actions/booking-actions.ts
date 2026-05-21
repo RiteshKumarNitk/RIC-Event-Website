@@ -2,18 +2,58 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { RIC_AUDITORIUM } from "@/lib/seat-layouts";
+
+// Extract member-only seat block prefixes from the auditorium layout
+const MEMBER_ONLY_PREFIXES: string[] = RIC_AUDITORIUM.blocks
+  .filter(b => b.membersOnly && b.id)
+  .map(b => b.id + "-");
+
+function isMemberOnlySeat(seatId: string): boolean {
+  return MEMBER_ONLY_PREFIXES.some(p => seatId.startsWith(p));
+}
 
 export async function createBooking(data: any) {
   try {
+    const userId = data.userId;
+
+    // Server-side validation: if any attendee has a member-only seat, verify user has linked member
+    if (data.attendees && Array.isArray(data.attendees)) {
+      const hasMemberOnlySeat = data.attendees.some((a: any) => a.seatId && isMemberOnlySeat(a.seatId));
+      if (hasMemberOnlySeat && userId) {
+        const linkedMember = await prisma.member.findUnique({
+          where: { userId },
+          select: { id: true, memberId: true, name: true },
+        });
+        if (!linkedMember) {
+          return { success: false, error: "You must be a verified RIC member to book member-exclusive seats." };
+        }
+        // Auto-fill member info for each member-only seat attendee
+        data.attendees = data.attendees.map((a: any) => {
+          if (a.seatId && isMemberOnlySeat(a.seatId)) {
+            return {
+              ...a,
+              isMember: true,
+              memberIdVerified: true,
+              memberId: String(linkedMember.memberId),
+              attendeeName: a.attendeeName || linkedMember.name,
+            };
+          }
+          return a;
+        });
+      }
+    }
+
     const booking = await prisma.booking.create({
       data: {
-        userId: data.userId,
+        userId,
         eventId: data.eventId,
         eventName: data.eventName,
         eventDate: new Date(data.eventDate),
         attendees: data.attendees,
         total: data.total,
         bookingDate: new Date(),
+        paymentInfo: data.paymentInfo || null,
       }
     });
     
@@ -29,23 +69,33 @@ export async function createBooking(data: any) {
 
 export async function getBookedSeats(eventId: string) {
   try {
-    const bookings = await prisma.booking.findMany({
-      where: { eventId },
-      select: { attendees: true }
-    });
+    const [bookings, blockedSeats] = await Promise.all([
+      prisma.booking.findMany({
+        where: { eventId },
+        select: { attendees: true }
+      }),
+      prisma.blockedSeat.findMany({
+        where: { eventId },
+        select: { seatId: true }
+      }),
+    ]);
     
-    // attendees is stored as Json in Prisma. It should be an array.
-    const seatIds: string[] = [];
+    const seatIds = new Set<string>();
+    
+    // Add all booked seats
     bookings.forEach(booking => {
       const attendees = booking.attendees as any[];
       if (Array.isArray(attendees)) {
         attendees.forEach(a => {
-          if (a.seatId) seatIds.push(a.seatId);
+          if (a.seatId) seatIds.add(a.seatId);
         });
       }
     });
     
-    return { success: true, seatIds };
+    // Add all admin-blocked seats
+    blockedSeats.forEach(bs => seatIds.add(bs.seatId));
+    
+    return { success: true, seatIds: Array.from(seatIds) };
   } catch (error) {
     console.error("Error fetching booked seats:", error);
     return { success: false, error: "Failed to fetch booked seats" };
@@ -87,10 +137,10 @@ export async function getAdminStats() {
       select: { total: true }
     });
     const totalRevenue = bookings.reduce((acc, booking) => acc + booking.total, 0);
-    
+    const totalBookings = await prisma.booking.count();
     const totalUsers = await prisma.user.count();
     
-    return { success: true, stats: { totalRevenue, totalUsers } };
+    return { success: true, stats: { totalRevenue, totalUsers, totalBookings } };
   } catch (error) {
     console.error("Error fetching admin stats:", error);
     return { success: false, error: "Failed to fetch admin stats" };

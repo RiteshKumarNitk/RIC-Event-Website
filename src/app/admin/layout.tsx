@@ -1,7 +1,7 @@
 "use client"
 
 import { SidebarProvider, Sidebar, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarHeader, SidebarContent, SidebarInset, SidebarFooter } from "@/components/ui/sidebar";
-import { Home, Calendar, Users, ShieldAlert, BadgePercent, LogOut, LayoutGrid } from "lucide-react";
+import { Home, Calendar, Users, ShieldAlert, BadgePercent, LogOut, LayoutGrid, Newspaper, QrCode, IndianRupee, ReceiptText } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
@@ -115,10 +115,42 @@ export default function AdminLayout({
                     </SidebarMenuButton>
                   </Link>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <Link href="/admin/transactions" passHref>
+                    <SidebarMenuButton isActive={isActive('/admin/transactions')}>
+                      <IndianRupee />
+                      <span>Transactions</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <Link href="/admin/checkin" passHref>
+                    <SidebarMenuButton isActive={isActive('/admin/checkin')}>
+                      <QrCode />
+                      <span>Check-In</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <Link href="/admin/fees" passHref>
+                    <SidebarMenuButton isActive={isActive('/admin/fees')}>
+                      <ReceiptText />
+                      <span>Fees & Taxes</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarContent>
             <SidebarFooter>
               <SidebarMenu>
+                <SidebarMenuItem>
+                  <Link href="/admin/site-content" passHref>
+                    <SidebarMenuButton isActive={isActive('/admin/site-content')}>
+                      <Newspaper />
+                      <span>Home Page</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <Link href="/" passHref>
                     <SidebarMenuButton>

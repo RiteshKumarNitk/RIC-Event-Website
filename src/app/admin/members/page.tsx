@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { MoreHorizontal, ChevronLeft, ChevronRight, Search, Plus, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, ChevronLeft, ChevronRight, Search, Plus, Pencil, Trash2, FileSpreadsheet } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useMembers } from "./members-provider";
 import { useRouter } from "next/navigation";
@@ -86,6 +86,7 @@ export default function AdminMembersPage() {
         </div>
         <Button asChild>
           <Link href="/admin/members/create"><Plus className="mr-2 h-4 w-4" />Add Member</Link>
+          <Link href="/admin/members/import"><FileSpreadsheet className="mr-2 h-4 w-4" />Bulk Import</Link>
         </Button>
       </div>
 

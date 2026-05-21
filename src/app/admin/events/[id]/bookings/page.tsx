@@ -9,7 +9,7 @@ import { useEvents } from '../../events-provider';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users, Ticket, DollarSign } from 'lucide-react';
+import { ArrowLeft, Users, Ticket, DollarSign, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -110,11 +110,17 @@ export default function EventBookingsPage() {
 
   return (
     <div>
-        <div className="mb-4">
+        <div className="mb-4 flex items-center gap-2">
             <Button asChild variant="outline">
                 <Link href="/admin/events">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Events
+                </Link>
+            </Button>
+            <Button asChild variant="outline">
+                <Link href={`/admin/events/${eventId}/seats-control`}>
+                    <Shield className="mr-2 h-4 w-4" />
+                    Manage Seats
                 </Link>
             </Button>
         </div>

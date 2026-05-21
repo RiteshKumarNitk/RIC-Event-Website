@@ -5,15 +5,19 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useEvents } from "@/app/admin/events/events-provider";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Booking, Event } from "@/lib/types";
 import { getUserBookings } from "@/app/actions/booking-actions";
+import { cancelBooking } from "@/app/actions/cancel-actions";
+import { getLinkedMember } from "@/app/actions/member-link-actions";
 import { BookingDetailsDialog } from "@/components/account/booking-details-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Ticket, Clock, ChevronRight } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Calendar, Ticket, Clock, ChevronRight, XCircle, Crown, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 
 export default function AccountPage() {
@@ -27,6 +31,11 @@ export default function AccountPage() {
   const [bookingsLoading, setBookingsLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  // Member linking state
+  const [linkedMember, setLinkedMember] = useState<any>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -35,12 +44,15 @@ export default function AccountPage() {
     }
   }, [user, loading, router, redirect]);
 
+  // Fetch bookings + linked member
   useEffect(() => {
-    const fetchBookings = async () => {
+    const fetchData = async () => {
       if (!user) return;
+      const userId = (user as any).uid || (user as any).id;
+
+      // Fetch bookings
       setBookingsLoading(true);
       try {
-        const userId = (user as any).uid || (user as any).id;
         const res = await getUserBookings(userId);
         if (res.success && res.bookings) {
           const bookingsData = res.bookings.map(data => ({
@@ -55,9 +67,15 @@ export default function AccountPage() {
       } finally {
         setBookingsLoading(false);
       }
+
+      // Fetch linked member
+      const memberRes = await getLinkedMember(userId);
+      if (memberRes.success && memberRes.member) {
+        setLinkedMember(memberRes.member);
+      }
     };
 
-    if (user) fetchBookings();
+    if (user) fetchData();
   }, [user]);
 
   const handleViewBooking = (booking: Booking) => {
@@ -72,6 +90,18 @@ export default function AccountPage() {
   const getAttendeeCount = (booking: Booking) => {
     const attendees = booking.attendees as any[];
     return Array.isArray(attendees) ? attendees.length : 0;
+  };
+
+  const handleCancel = async (bookingId: string) => {
+    setCancellingId(bookingId);
+    const res = await cancelBooking(bookingId);
+    if (res.success) {
+      toast({ title: "Cancelled", description: "Booking cancelled successfully." });
+      setRegisteredBookings((prev) => prev.filter((b) => b.id !== bookingId));
+    } else {
+      toast({ variant: "destructive", title: "Error", description: res.error || "Failed to cancel." });
+    }
+    setCancellingId(null);
   };
 
   const initials = user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
@@ -124,6 +154,27 @@ export default function AccountPage() {
                   </Badge>
                 </div>
                 <Separator className="my-4" />
+
+                {/* RIC Member Section */}
+                <div className="mb-4">
+                  {linkedMember ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                      <Crown className="h-5 w-5 text-amber-500 mx-auto mb-1" />
+                      <p className="text-sm font-bold text-amber-800">{linkedMember.name}</p>
+                      <p className="text-xs text-amber-600">Member ID: {linkedMember.memberId}</p>
+                      <Badge variant="outline" className="mt-1 text-amber-600 border-amber-300 bg-amber-100/50 text-xs">
+                        {linkedMember.categoryAcronym || "RIC Member"}
+                      </Badge>
+                    </div>
+                  ) : (
+                    <Button variant="outline" className="w-full gap-2 border-amber-200 text-amber-700 hover:bg-amber-50" asChild>
+                      <Link href="/member-login?redirect=/account">
+                        <Crown className="h-4 w-4" /> Link Member Account
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+
                 <Button variant="outline" className="w-full" onClick={() => user.role === 'ADMIN' && router.push('/admin')}>
                   {user.role === 'ADMIN' ? 'Admin Panel' : 'Upgrade to Admin'}
                 </Button>
@@ -177,9 +228,17 @@ export default function AccountPage() {
                               </div>
                             </div>
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => handleViewBooking(booking)} disabled={!event} className="gap-1 shrink-0">
-                            View Details <ChevronRight className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {!isPast && (
+                              <Button variant="ghost" size="sm" onClick={() => handleCancel(booking.id)} disabled={cancellingId === booking.id} className="text-destructive hover:text-destructive gap-1">
+                                {cancellingId === booking.id ? <Skeleton className="h-3 w-3" /> : <XCircle className="h-3.5 w-3.5" />}
+                                Cancel
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="sm" onClick={() => handleViewBooking(booking)} disabled={!event} className="gap-1">
+                              View Details <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       );
                     })}
@@ -205,6 +264,8 @@ export default function AccountPage() {
           event={getEventForBooking(selectedBooking)}
         />
       )}
+
+      {/* Member linking moved to /member-login */}
     </>
   );
 }

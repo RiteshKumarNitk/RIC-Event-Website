@@ -7,17 +7,19 @@ import { Event, Seat, SeatSection } from "@/lib/types";
 import { SeatingChart } from "@/components/events/seating-chart";
 import { SEAT_LAYOUTS, RIC_AUDITORIUM } from "@/lib/seat-layouts";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Info, Check } from "lucide-react";
+import { ArrowLeft, Info, Check, Crown, LogIn, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CheckoutDialog } from "@/components/checkout/checkout-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { verifyMemberForSeatSelection } from "@/app/actions/member-link-actions";
+import { getBookedSeats } from "@/app/actions/booking-actions";
+import Link from "next/link";
 
 type BookingStep = "showtime" | "seats" | "summary";
-
-/* ──────────────────────── Stepper ──────────────────────── */
 
 const Stepper = ({ currentStep }: { currentStep: number }) => {
     const steps = [
@@ -106,12 +108,21 @@ function ShowtimeSelection({ event, onNext }: { event: Event; onNext: (showtime:
                             <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50">Available</Badge>
                         </div>
                     ))}
+                    <div className="flex items-center justify-between p-4 rounded-lg border border-amber-200 bg-amber-50/50">
+                        <div>
+                            <h4 className="font-bold text-amber-800 uppercase tracking-wide text-sm flex items-center gap-1.5">
+                                <Crown className="h-4 w-4" /> Members Exclusive
+                            </h4>
+                            <p className="text-xl font-black text-amber-700 mt-0.5">Free</p>
+                        </div>
+                        <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">Member Only</Badge>
+                    </div>
                 </div>
 
                 <div className="mt-6 p-4 bg-blue-50 rounded-lg flex gap-3 items-start">
                     <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
                     <p className="text-xs text-blue-700 leading-relaxed font-medium">
-                        Tickets are non-refundable. Please ensure you select the correct showtime before proceeding.
+                        RIC Members get free access to the exclusive Members section. Verify your membership after selecting seats.
                     </p>
                 </div>
             </div>
@@ -178,7 +189,7 @@ function BookingSummary({
                             {selectedSeats.map(({ seat, section }) => (
                                 <div key={seat.id} className="flex items-center justify-between text-sm p-2 rounded hover:bg-gray-50">
                                     <span className="font-medium">{section.sectionName} — {seat.row}{seat.col}</span>
-                                    <span className="font-bold">₹{section.price}</span>
+                                    <span className="font-bold">{section.price === 0 ? "Free" : `₹${section.price}`}</span>
                                 </div>
                             ))}
                         </div>
@@ -188,7 +199,7 @@ function BookingSummary({
 
                     <div className="flex justify-between items-center">
                         <span className="text-lg font-bold">Total Amount</span>
-                        <span className="text-2xl font-black text-[#F84464]">₹{total}</span>
+                        <span className="text-2xl font-black" style={{ color: total === 0 ? "#16a34a" : "#F84464" }}>{total === 0 ? "Free" : `₹${total}`}</span>
                     </div>
                 </div>
             </div>
@@ -196,11 +207,15 @@ function BookingSummary({
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50">
                 <div className="max-w-2xl mx-auto flex justify-between items-center px-4">
                     <div>
-                        <div className="text-2xl font-black text-gray-800">₹{total}</div>
+                        <div className="text-2xl font-black text-gray-800">{total === 0 ? "Free" : `₹${total}`}</div>
                         <div className="text-sm font-bold text-gray-500 uppercase tracking-tighter">{selectedSeats.length} Seat{selectedSeats.length !== 1 ? "s" : ""}</div>
                     </div>
-                    <Button className="bg-[#F84464] hover:bg-[#F84464]/90 text-white px-12 py-7 rounded-xl text-lg font-bold shadow-lg" onClick={onProceed}>
-                        PROCEED TO PAY
+                    <Button
+                        className="px-12 py-7 rounded-xl text-lg font-bold shadow-lg text-white"
+                        style={{ backgroundColor: total === 0 ? "#16a34a" : "#F84464" }}
+                        onClick={onProceed}
+                    >
+                        {total === 0 ? "CONFIRM BOOKING" : "PROCEED TO PAY"}
                     </Button>
                 </div>
             </div>
@@ -215,6 +230,7 @@ export default function SeatsPage() {
     const router = useRouter();
     const id = params.id as string;
     const { events, loading } = useEvents();
+    const { user } = useAuth();
     const { toast } = useToast();
 
     const [step, setStep] = useState<BookingStep>("showtime");
@@ -222,8 +238,55 @@ export default function SeatsPage() {
     const [ticketCount, setTicketCount] = useState(1);
     const [selectedSeats, setSelectedSeats] = useState<{ seat: Seat; section: { sectionName: string; price: number } }[]>([]);
     const [checkoutOpen, setCheckoutOpen] = useState(false);
+    const [bookedSeats, setBookedSeats] = useState<string[]>([]);
+
+    // Member state
+    const [memberStatus, setMemberStatus] = useState<{
+      isMember: boolean;
+      alreadyUsed: boolean;
+      name?: string;
+      memberId?: number;
+      categoryAcronym?: string;
+    } | null>(null);
+    const [checkingMember, setCheckingMember] = useState(true);
 
     const event = events.find((e) => e.id === id);
+
+    // Check member status on mount
+    useEffect(() => {
+        const check = async () => {
+            if (!user) {
+                setCheckingMember(false);
+                return;
+            }
+            const uid = (user as any).uid || (user as any).id;
+            if (!uid) { setCheckingMember(false); return; }
+            const res = await verifyMemberForSeatSelection(uid, id);
+            if (res.success) {
+                setMemberStatus(res.isMember ? {
+                    isMember: true,
+                    alreadyUsed: res.alreadyUsed || false,
+                    name: res.member?.name,
+                    memberId: res.member?.memberId,
+                    categoryAcronym: res.member?.categoryAcronym,
+                } : null);
+            }
+            setCheckingMember(false);
+        };
+        check();
+    }, [user, id]);
+
+    // Fetch booked seats
+    useEffect(() => {
+        const fetch = async () => {
+            if (!id) return;
+            const res = await getBookedSeats(id);
+            if (res.success && res.seatIds) {
+                setBookedSeats(res.seatIds);
+            }
+        };
+        fetch();
+    }, [id]);
 
     useEffect(() => {
         if (event && !selectedShowtime && event.showtimes?.length > 0) {
@@ -276,7 +339,7 @@ export default function SeatsPage() {
 
     return (
         <div className="min-h-screen bg-white flex flex-col">
-            {/* Header — BookMyShow style */}
+            {/* Header */}
             <header className="bg-[#333545] text-white py-3 px-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -288,11 +351,32 @@ export default function SeatsPage() {
                             <p className="text-xs text-gray-400">{event.venue} | {format(new Date(event.date), "EEE, d MMM, yyyy")}</p>
                         </div>
                     </div>
-                    {step === "seats" && (
-                        <div className="hidden sm:flex items-center gap-2 border border-gray-500 rounded px-3 py-1">
-                            <span className="text-xs font-bold uppercase tracking-wider">{ticketCount} Ticket{ticketCount !== 1 ? "s" : ""}</span>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {step === "seats" && (
+                            <div className="hidden sm:flex items-center gap-2 border border-gray-500 rounded px-3 py-1">
+                                <span className="text-xs font-bold uppercase tracking-wider">{ticketCount} Ticket{ticketCount !== 1 ? "s" : ""}</span>
+                            </div>
+                        )}
+                        {!checkingMember && (
+                            memberStatus?.isMember ? (
+                                <div className="flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/40 rounded-full px-3 py-1">
+                                    <Crown className="h-3.5 w-3.5 text-amber-400" />
+                                    <span className="text-xs font-bold text-amber-300">{memberStatus.name || "Member"}</span>
+                                </div>
+                            ) : (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    asChild
+                                    className="text-white hover:bg-white/10 text-xs gap-1"
+                                >
+                                    <Link href={`/member-login?redirect=/events/${id}/seats`}>
+                                        <LogIn className="h-3.5 w-3.5" /> Member Login
+                                    </Link>
+                                </Button>
+                            )
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -325,6 +409,9 @@ export default function SeatsPage() {
                                 onTicketCountChange={setTicketCount}
                                 onProceed={goToSummary}
                                 layout={RIC_AUDITORIUM}
+                                isMember={memberStatus?.isMember ?? false}
+                                memberLabel={memberStatus?.name ? `${memberStatus.name} (${memberStatus.categoryAcronym || "Member"})` : undefined}
+                                bookedSeats={bookedSeats}
                             />
                         </div>
                     </div>
@@ -352,6 +439,8 @@ export default function SeatsPage() {
                     selectedSeats={convertedSeats}
                 />
             )}
+
+            {/* Member login moved to /member-login */}
         </div>
     );
 }

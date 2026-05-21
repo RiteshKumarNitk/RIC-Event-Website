@@ -6,13 +6,14 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { AuditoriumLayoutConfig, SeatCategory, SeatBlock } from "@/lib/seat-layouts";
-import { ZoomIn, ZoomOut, Maximize2, MousePointer2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, MousePointer2, Crown } from "lucide-react";
 
 const CATEGORY_COLORS: Record<SeatCategory, { fill: string; stroke: string; text: string; bg: string; border: string }> = {
   Standard: { fill: "#ffffff", stroke: "#22c55e", text: "#22c55e", bg: "bg-green-500", border: "border-green-200" },
   Premium: { fill: "#ffffff", stroke: "#06b6d4", text: "#06b6d4", bg: "bg-cyan-500", border: "border-cyan-200" },
   VIP: { fill: "#ffffff", stroke: "#ec4899", text: "#ec4899", bg: "bg-pink-500", border: "border-pink-200" },
   Balcony: { fill: "#ffffff", stroke: "#a855f7", text: "#a855f7", bg: "bg-purple-500", border: "border-purple-200" },
+  Members: { fill: "#ffffff", stroke: "#f59e0b", text: "#f59e0b", bg: "bg-amber-500", border: "border-amber-200" },
 };
 
 const SEAT_R = 9;
@@ -29,6 +30,7 @@ interface SeatState {
   category: SeatCategory;
   price: number;
   isBooked: boolean;
+  membersOnly?: boolean;
 }
 
 export function SeatingChart({
@@ -37,12 +39,18 @@ export function SeatingChart({
   onTicketCountChange,
   onProceed,
   layout,
+  isMember = false,
+  memberLabel,
+  bookedSeats = [],
 }: {
   event: Event;
   ticketCount: number;
   onTicketCountChange: (count: number) => void;
   onProceed?: (seats: { seat: Seat; section: { sectionName: string; price: number; rows: never[]; className: string } }[]) => void;
   layout: AuditoriumLayoutConfig;
+  isMember?: boolean;
+  memberLabel?: string;
+  bookedSeats?: string[];
 }) {
   const [selectedSeats, setSelectedSeats] = useState<SeatState[]>([]);
   const [zoom, setZoom] = useState(1);
@@ -53,14 +61,30 @@ export function SeatingChart({
   const svgRef = useRef<SVGSVGElement>(null);
   const { toast } = useToast();
 
+  const visibleBlocks = useMemo(() => {
+    return layout.blocks.filter((b) => {
+      if (b.membersOnly) return isMember;
+      return true;
+    });
+  }, [layout.blocks, isMember]);
+
+  const hasMembersBlocks = layout.blocks.some((b) => b.membersOnly);
+
   const handleSelectSeat = (seat: SeatState) => {
     if (seat.isBooked) return;
+    if (seat.membersOnly && !isMember) {
+      toast({ variant: "destructive", title: "Members Only", description: "Please verify your membership to select these seats." });
+      return;
+    }
+    const isSelected = selectedSeats.some(s => s.id === seat.id);
+    if (!isSelected && selectedSeats.length >= ticketCount) {
+      toast({ variant: "destructive", title: `You can only select a maximum of ${ticketCount} seats.`, description: "Deselect a seat to choose another." });
+      return;
+    }
     setSelectedSeats((prev) => {
       const isSelected = prev.some(s => s.id === seat.id);
       if (isSelected) return prev.filter(s => s.id !== seat.id);
-      if (prev.length < ticketCount) return [...prev, seat];
-      toast({ variant: "destructive", title: `You can only select a maximum of ${ticketCount} seats.`, description: "Deselect a seat to choose another." });
-      return prev;
+      return [...prev, seat];
     });
   };
 
@@ -78,7 +102,6 @@ export function SeatingChart({
 
   const getTotalPrice = () => selectedSeats.reduce((total, s) => total + s.price, 0);
 
-  // Pan and Zoom Logic
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey) {
       e.preventDefault();
@@ -100,14 +123,10 @@ export function SeatingChart({
   }, [isDragging, dragStart]);
 
   const handleMouseUp = () => setIsDragging(false);
-
-  const resetView = () => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-  };
+  const resetView = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
 
   const totalWidth = 1200;
-  const totalHeight = 700;
+  const totalHeight = 750;
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-white">
@@ -123,6 +142,15 @@ export function SeatingChart({
               </div>
             </div>
           ))}
+          {hasMembersBlocks && (
+            <div className="flex items-center gap-2 shrink-0">
+              <div className={cn("w-4 h-4 rounded-sm border", CATEGORY_COLORS.Members.bg, CATEGORY_COLORS.Members.border)} />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase text-gray-500 leading-none">Members</span>
+                <span className="text-xs font-bold text-amber-600">Free</span>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-4 h-4 rounded-sm bg-[#F84464]" />
             <span className="text-[10px] font-bold uppercase text-gray-500">Selected</span>
@@ -132,6 +160,13 @@ export function SeatingChart({
             <span className="text-[10px] font-bold uppercase text-gray-500">Booked</span>
           </div>
         </div>
+
+        {isMember && memberLabel && (
+          <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
+            <Crown className="h-3.5 w-3.5 text-amber-600" />
+            <span className="text-xs font-bold text-amber-700">{memberLabel}</span>
+          </div>
+        )}
 
         <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg shadow-inner">
           <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white hover:shadow-sm" onClick={() => setZoom(z => Math.min(3, z + 0.2))}>
@@ -145,6 +180,16 @@ export function SeatingChart({
           </Button>
         </div>
       </div>
+
+      {/* Member-only banner */}
+      {hasMembersBlocks && !isMember && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center">
+          <p className="text-xs font-medium text-amber-800">
+            <Crown className="h-3.5 w-3.5 inline mr-1" />
+            Member-exclusive seats available up front. Verify your membership above to unlock free seats.
+          </p>
+        </div>
+      )}
 
       {/* Seat Map */}
       <div 
@@ -174,18 +219,26 @@ export function SeatingChart({
              <text x="200" y="60" textAnchor="middle" fill="#0f172a" fontSize="24" fontWeight="600" letterSpacing="0.1em">STAGE</text>
           </g>
 
+          {/* MEMBERS Label (if visible) */}
+          {isMember && (
+            <text x={totalWidth/2} y={660} textAnchor="middle" fill="#d97706" fontSize="14" fontWeight="700" letterSpacing="0.1em">✦ MEMBERS EXCLUSIVE ✦</text>
+          )}
+
           {/* BALCONY Text */}
           <text x={totalWidth/2} y={180} textAnchor="middle" fill="#0f172a" fontSize="20" fontWeight="600" letterSpacing="0.1em">BALCONY</text>
 
-          {layout.blocks.map((block) => (
+          {visibleBlocks.map((block) => (
             <g key={block.id} transform={`translate(${block.position.left}, ${block.position.top}) rotate(${block.rotation})`}>
+              {/* Members-only badge */}
+              {block.membersOnly && isMember && (
+                <rect x={-10} y={-15} width={block.cols * (SEAT_W + SEAT_GAP) + 20} height={block.rows * (SEAT_H + ROW_GAP) + 20} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4,3" rx="4" />
+              )}
               {Array.from({ length: block.rows }).map((_, r) => {
                 const rowLabel = String.fromCharCode(65 + r + (block.rowLabelOffset || 0));
                 const rowY = (block.rows - 1 - r) * (SEAT_H + ROW_GAP);
                 const rowCols = block.colsPerRow ? block.colsPerRow[r] : block.cols;
                 const maxColsInBlock = block.colsPerRow ? Math.max(...block.colsPerRow) : block.cols;
                 
-                // Centering logic for trapezoidal rows
                 const seatTotalWidth = SEAT_W + SEAT_GAP;
                 const rowWidth = rowCols * seatTotalWidth;
                 const blockWidth = maxColsInBlock * seatTotalWidth;
@@ -195,14 +248,12 @@ export function SeatingChart({
                 } else if (block.align === "left") {
                   centeringOffset = 0;
                 } else {
-                  // Grid-aligned centering to prevent staggered half-seats
                   const differenceInSeats = maxColsInBlock - rowCols;
                   centeringOffset = Math.floor(differenceInSeats / 2) * seatTotalWidth;
                 }
 
                 return (
                   <g key={r}>
-                    {/* Row Label (Left) */}
                     {!block.hideLeftLabel && (
                       <text x={centeringOffset - 20} y={rowY + SEAT_H / 2 + 2} textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="700">{rowLabel}</text>
                     )}
@@ -221,8 +272,9 @@ export function SeatingChart({
                         row: r + (block.rowLabelOffset || 0),
                         col: seatNum,
                         category: block.category,
-                        price: event.ticketTypes.find(t => t.type === block.category)?.price || 0,
-                        isBooked: false,
+                        price: block.membersOnly ? 0 : (event.ticketTypes.find(t => t.type === block.category)?.price || 0),
+                        isBooked: bookedSeats.includes(seatId),
+                        membersOnly: block.membersOnly,
                       };
 
                       return (
@@ -260,7 +312,6 @@ export function SeatingChart({
                       );
                     })}
 
-                    {/* Row Label (Right) */}
                     {!block.hideRightLabel && (
                       <text x={centeringOffset + rowWidth + 15} y={rowY + SEAT_H / 2 + 2} textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="700">{rowLabel}</text>
                     )}
@@ -271,7 +322,6 @@ export function SeatingChart({
           ))}
         </svg>
 
-        {/* Tip */}
         <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full border shadow-sm flex items-center gap-2 pointer-events-none">
           <MousePointer2 className="w-3.5 h-3.5 text-gray-500" />
           <span className="text-[10px] font-medium text-gray-600">Drag to pan • Ctrl + Scroll to zoom</span>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { DollarSign, Users, Calendar, Database, AlertTriangle, Ticket, TrendingUp } from "lucide-react";
+import { DollarSign, Users, Calendar, Database, AlertTriangle, Ticket, TrendingUp, Shield, QrCode, IndianRupee } from "lucide-react";
 import { useEvents } from "./events/events-provider";
 import { useMembers } from "./members/members-provider";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { getAdminStats } from "@/app/actions/booking-actions";
+import { seedDefaultAdmin } from "@/app/actions/admin-actions";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
@@ -41,10 +43,12 @@ function StatCardSkeleton() {
 export default function AdminDashboard() {
   const { seedDatabase, events, deleteAllEvents, loading: eventsLoading } = useEvents();
   const { members, loading: membersLoading } = useMembers();
+  const { toast } = useToast();
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalBookings, setTotalBookings] = useState(0);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [seedingAdmin, setSeedingAdmin] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -54,6 +58,7 @@ export default function AdminDashboard() {
         if (res.success && res.stats) {
           setTotalRevenue(res.stats.totalRevenue);
           setTotalUsers(res.stats.totalUsers);
+          setTotalBookings(res.stats.totalBookings);
         }
       } catch (error) {
         console.error("Error fetching stats:", error);
@@ -65,7 +70,6 @@ export default function AdminDashboard() {
   }, [events]);
 
   const upcomingEvents = events.filter(e => new Date(e.date) > new Date());
-  const totalBookingsCount = events.length;
   const isLoading = loadingStats || eventsLoading;
 
   const stats = [
@@ -78,6 +82,17 @@ export default function AdminDashboard() {
   const handleClearAndReseed = async () => {
     await deleteAllEvents();
     await seedDatabase();
+  };
+
+  const handleSeedAdmin = async () => {
+    setSeedingAdmin(true);
+    const res = await seedDefaultAdmin();
+    if (res.success) {
+      toast({ title: "Admin Account", description: res.message });
+    } else {
+      toast({ variant: "destructive", title: "Error", description: res.error || "Failed to seed admin." });
+    }
+    setSeedingAdmin(false);
   };
 
   return (
@@ -170,6 +185,32 @@ export default function AdminDashboard() {
             </Button>
           </CardContent>
           <CardFooter className="flex-col gap-2">
+            <Button asChild className="w-full justify-between" variant="outline">
+              <Link href="/admin/checkin">QR Check-In <QrCode className="h-4 w-4" /></Link>
+            </Button>
+            <Button asChild className="w-full justify-between" variant="outline">
+              <Link href="/admin/transactions">Transactions <IndianRupee className="h-4 w-4" /></Link>
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="w-full" size="sm">
+                  <Shield className="mr-2 h-4 w-4" />
+                  {seedingAdmin ? "Creating..." : "Setup Default Admin"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Create Default Admin</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will create an admin account with email <strong>admin@ric.com</strong> and password <strong>admin123</strong>. Use this to log in at /login.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleSeedAdmin} disabled={seedingAdmin}>Create Admin</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" className="w-full" size="sm">
