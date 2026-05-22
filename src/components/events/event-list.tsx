@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Search, Grid, List } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
-const categories: (EventCategory | "All")[] = ["All", "Music", "Sports", "Art", "Theater", "Seminar", "Cultural", "Talk"];
+const categories: (EventCategory | "All")[] = ["All", "Music", "Sports", "Art", "Theater", "Seminar", "Cultural", "Talk", "Comedy"];
 
 interface EventListProps {
   events: Event[];

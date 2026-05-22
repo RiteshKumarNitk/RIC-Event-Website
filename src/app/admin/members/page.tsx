@@ -84,10 +84,14 @@ export default function AdminMembersPage() {
           <h1 className="text-3xl font-bold">Manage Members</h1>
           <p className="text-muted-foreground mt-1">{members.length} total members</p>
         </div>
-        <Button asChild>
-          <Link href="/admin/members/create"><Plus className="mr-2 h-4 w-4" />Add Member</Link>
-          <Link href="/admin/members/import"><FileSpreadsheet className="mr-2 h-4 w-4" />Bulk Import</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild>
+            <Link href="/admin/members/create"><Plus className="mr-2 h-4 w-4" />Add Member</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/admin/members/import"><FileSpreadsheet className="mr-2 h-4 w-4" />Bulk Import</Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

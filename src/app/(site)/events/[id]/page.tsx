@@ -4,14 +4,14 @@ import { notFound, useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, MapPin, Share2, Languages, PersonStanding, Ticket, UtensilsCrossed, ChevronLeft, ChevronRight, ExternalLink, Car, Music } from "lucide-react";
+import { Calendar, Clock, MapPin, Share2, Languages, PersonStanding, Ticket, UtensilsCrossed, ChevronLeft, ChevronRight, ExternalLink, Car, Music, Heart, Hourglass, MicVocal } from "lucide-react";
 import { format } from "date-fns";
 import { useEvents } from "@/app/admin/events/events-provider";
 import { TicketSelection } from "@/components/events/ticket-selection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EventCard } from "@/components/events/event-card";
 import { CountdownTimer } from "@/components/ui/countdown-timer";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 function EventPageSkeleton() {
@@ -84,6 +84,31 @@ export default function EventPage() {
   const venueAddress = `${event.venue}, ${event.location}, Jaipur, Rajasthan`;
   const googleMapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(venueAddress)}`;
 
+  const [interested, setInterested] = useState(false);
+  const [interestedCount, setInterestedCount] = useState(0);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(`interested_${event.id}`);
+    if (stored) setInterested(true);
+    const count = parseInt(localStorage.getItem(`interested_count_${event.id}`) || "0", 10);
+    setInterestedCount(count);
+  }, [event.id]);
+
+  const handleInterested = () => {
+    const newVal = !interested;
+    setInterested(newVal);
+    const count = parseInt(localStorage.getItem(`interested_count_${event.id}`) || "0", 10);
+    const newCount = newVal ? count + 1 : Math.max(0, count - 1);
+    localStorage.setItem(`interested_${event.id}`, newVal ? "true" : "");
+    localStorage.setItem(`interested_count_${event.id}`, String(newCount));
+    setInterestedCount(newCount);
+  };
+
+  const artists = (event as any).artists || [];
+  const ageLimit = (event as any).ageLimit || "All ages";
+  const duration = (event as any).duration;
+  const languages = (event as any).languages || [];
+
   return (
     <div>
       {/* Hero Section */}
@@ -137,6 +162,24 @@ export default function EventPage() {
               <p className="text-muted-foreground leading-relaxed">{event.description}</p>
             </div>
 
+            {/* Artists */}
+            {artists.length > 0 && (
+              <div className="bg-card rounded-xl p-6 md:p-8 border">
+                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><MicVocal className="h-6 w-6 text-primary" /> Artists & Performers</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {artists.map((artist: any, i: number) => (
+                    <div key={i} className="flex flex-col items-center text-center p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <div className="relative h-20 w-20 rounded-full overflow-hidden mb-3 ring-2 ring-primary/20">
+                        <Image src={artist.photo} alt={artist.name} fill className="object-cover" />
+                      </div>
+                      <h4 className="font-semibold text-sm leading-tight">{artist.name}</h4>
+                      <Badge variant="secondary" className="mt-1.5 text-[10px] px-2">{artist.category}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Similar Events */}
             {similarEvents.length > 0 && (
               <div>
@@ -153,6 +196,21 @@ export default function EventPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             <TicketSelection event={event} onProceed={handleProceed} />
+
+            {/* Interested */}
+            <div className="bg-card rounded-xl border p-4">
+              <h3 className="font-semibold mb-3 flex items-center gap-2"><Heart className="h-4 w-4 text-primary" /> Interested</h3>
+              <p className="text-xs text-muted-foreground mb-3">{interestedCount} people are interested in this event</p>
+              <Button
+                variant={interested ? "default" : "outline"}
+                size="sm"
+                className="w-full gap-2"
+                onClick={handleInterested}
+              >
+                <Heart className={cn("h-4 w-4", interested && "fill-current")} />
+                {interested ? "Interested" : "I'm Interested"}
+              </Button>
+            </div>
 
             {/* Venue Map */}
             <div className="bg-card rounded-xl border overflow-hidden">
@@ -205,10 +263,11 @@ export default function EventPage() {
             <ul className="space-y-4 text-muted-foreground">
               <li className="flex items-center gap-4"><Calendar className="h-5 w-5 text-primary shrink-0" /><span>{format(new Date(event.date), "EEEE, MMMM d, yyyy")}</span></li>
               <li className="flex items-center gap-4"><Clock className="h-5 w-5 text-primary shrink-0" /><span>{event.showtimes.join(" / ")}</span></li>
+              <li className="flex items-center gap-4"><Hourglass className="h-5 w-5 text-primary shrink-0" /><span>{duration ? `${Math.floor(duration / 60)}h ${duration % 60}m` : "N/A"}</span></li>
               <li className="flex items-center gap-4"><MapPin className="h-5 w-5 text-primary shrink-0" /><span>{event.venue}, {event.location}</span></li>
               <li className="flex items-center gap-4"><Ticket className="h-5 w-5 text-primary shrink-0" /><span>{event.category}</span></li>
-              <li className="flex items-center gap-4"><PersonStanding className="h-5 w-5 text-primary shrink-0" /><span>All ages welcome</span></li>
-              <li className="flex items-center gap-4"><Languages className="h-5 w-5 text-primary shrink-0" /><span>English, Hindi</span></li>
+              <li className="flex items-center gap-4"><PersonStanding className="h-5 w-5 text-primary shrink-0" /><span>{ageLimit}</span></li>
+              <li className="flex items-center gap-4"><Languages className="h-5 w-5 text-primary shrink-0" /><span>{languages.length > 0 ? languages.join(", ") : "English, Hindi"}</span></li>
             </ul>
           </div>
           <div className="bg-card rounded-xl border p-6 md:p-8">

@@ -6,13 +6,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Key } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMembers } from "../members-provider";
 import { format } from 'date-fns';
+import { useState } from "react";
 
 const memberSchema = z.object({
   memberId: z.coerce.number().int("Member ID must be an integer."),
@@ -26,11 +27,13 @@ const memberSchema = z.object({
   applicationId: z.coerce.number().int().optional(),
   categoryType: z.string().optional(),
   categoryAcronym: z.string().optional(),
+  password: z.string().min(4, "Password must be at least 4 characters."),
 });
 
 export default function CreateMemberPage() {
     const router = useRouter();
     const { addMember } = useMembers();
+    const [showPassword, setShowPassword] = useState(false);
 
     const form = useForm<z.infer<typeof memberSchema>>({
         resolver: zodResolver(memberSchema),
@@ -44,6 +47,7 @@ export default function CreateMemberPage() {
             emergencyContact: "",
             categoryType: "IND",
             categoryAcronym: "FM",
+            password: "",
         },
     });
 
@@ -53,7 +57,7 @@ export default function CreateMemberPage() {
             applicationId: values.applicationId ?? 0,
             categoryType: values.categoryType ?? 'IND',
             categoryAcronym: values.categoryAcronym ?? 'IND',
-        });
+        } as any);
         router.push("/admin/members");
     }
 
@@ -90,7 +94,7 @@ export default function CreateMemberPage() {
                                     <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
                             </div>
-                             <FormField control={form.control} name="address" render={({ field }) => (
+                            <FormField control={form.control} name="address" render={({ field }) => (
                                 <FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -104,6 +108,28 @@ export default function CreateMemberPage() {
                                     <FormItem><FormLabel>Emergency Contact</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
                             </div>
+                            <Card className="border-amber-200 bg-amber-50/50">
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-sm flex items-center gap-2"><Key className="h-4 w-4 text-amber-600" /> Login Credentials</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <FormField control={form.control} name="password" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Password</FormLabel>
+                                            <FormControl>
+                                                <div className="relative">
+                                                    <Input type={showPassword ? "text" : "password"} placeholder="Set member login password" {...field} />
+                                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">
+                                                        {showPassword ? "Hide" : "Show"}
+                                                    </button>
+                                                </div>
+                                            </FormControl>
+                                            <FormDescription className="text-xs">Member will use this password with their Member ID to login</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                </CardContent>
+                            </Card>
                             <div className="flex justify-end">
                                 <Button type="submit">Create Member</Button>
                             </div>

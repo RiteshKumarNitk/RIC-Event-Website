@@ -42,27 +42,13 @@ export default function LoginPage() {
     try {
       const result = await login(values.email, values.password);
       if (result?.error) {
-        toast({ variant: "destructive", title: "Login Failed", description: "Invalid email or password." });
+        toast({ variant: "destructive", title: "Login Failed", description: result.error });
         return;
       }
       toast({ title: "Welcome back!", description: "Logged in successfully." });
       router.push(redirect || "/account");
     } catch (error: any) {
-       let description = "An unexpected error occurred. Please try again.";
-      if (error.code) {
-        switch (error.code) {
-          case 'auth/invalid-credential':
-            description = "Invalid email or password.";
-            break;
-          case 'auth/too-many-requests':
-            description = "Too many failed attempts. Please try again later.";
-            break;
-          default:
-            description = error.message || description;
-            break;
-        }
-      }
-      toast({ variant: "destructive", title: "Login Failed", description });
+      toast({ variant: "destructive", title: "Login Failed", description: error.message || "An unexpected error occurred." });
     }
   };
 

@@ -28,6 +28,8 @@ type AttendeeInfo = {
   price: number;
   attendeeName: string;
   memberId?: string;
+  memberName?: string | null;
+  memberCategory?: string | null;
   isMember: boolean;
   memberIdVerified: boolean;
   checkedIn: boolean;
@@ -39,6 +41,9 @@ type BookingResult = {
   eventId: string;
   eventName: string;
   eventDate: string;
+  eventVenue: string | null;
+  eventLocation: string | null;
+  eventCategory: string | null;
   total: number;
   bookingDate: string;
   user: { name: string | null; email: string };
@@ -320,9 +325,12 @@ export default function AdminCheckinPage() {
               booking.allCheckedIn ? "bg-green-500/5" : "bg-amber-500/5"
             )}>
               <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <CardTitle className="text-lg">{booking.eventName}</CardTitle>
+                    {booking.eventCategory && (
+                      <Badge variant="secondary" className="text-xs">{booking.eventCategory}</Badge>
+                    )}
                     {booking.allCheckedIn ? (
                       <Badge className="bg-green-500 text-white gap-1"><CheckCircle2 className="h-3 w-3" /> All Checked In</Badge>
                     ) : (
@@ -333,10 +341,13 @@ export default function AdminCheckinPage() {
                   </div>
                   <CardDescription className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
                     <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> {format(new Date(booking.eventDate), "MMM d, yyyy")}</span>
-                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {format(new Date(booking.bookingDate), "MMM d, h:mm a")}</span>
+                    {booking.eventVenue && (
+                      <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {booking.eventVenue}{booking.eventLocation ? `, ${booking.eventLocation}` : ""}</span>
+                    )}
+                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Booked {format(new Date(booking.bookingDate), "MMM d, h:mm a")}</span>
                   </CardDescription>
                 </div>
-                <div className="text-right text-sm">
+                <div className="text-right text-sm shrink-0 ml-4">
                   <p className="font-medium">{booking.user.name || "Guest"}</p>
                   <p className="text-muted-foreground">{booking.user.email}</p>
                 </div>
@@ -376,7 +387,14 @@ export default function AdminCheckinPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium">{attendee.attendeeName}</p>
-                        <p className="text-xs text-muted-foreground">Seat {attendee.seatId}{attendee.isMember ? " · Member" : ""}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Seat {attendee.seatId}
+                          {attendee.isMember && attendee.memberName
+                            ? ` · ${attendee.memberName} (ID: ${attendee.memberId})`
+                            : attendee.isMember
+                              ? ` · Member (ID: ${attendee.memberId})`
+                              : ""}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

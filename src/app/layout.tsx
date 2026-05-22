@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { EventsProvider } from "@/app/admin/events/events-provider";
 import { MembersProvider } from "@/app/admin/members/members-provider";
+import { MemberAuthProvider } from "@/hooks/use-member-auth";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -41,8 +42,10 @@ export default function RootLayout({
           <AuthProvider>
             <EventsProvider>
               <MembersProvider>
-                {children}
-                <Toaster />
+                <MemberAuthProvider>
+                  {children}
+                  <Toaster />
+                </MemberAuthProvider>
               </MembersProvider>
             </EventsProvider>
           </AuthProvider>

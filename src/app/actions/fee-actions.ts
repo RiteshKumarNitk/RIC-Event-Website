@@ -63,7 +63,7 @@ export async function calculateFees(subtotal: number) {
       orderBy: { updatedAt: "desc" },
     });
 
-    const gstPct = config?.gstPercentage ?? 0;
+    const gstPct = config?.gstPercentage ?? 18;
     const feeType = config?.platformFeeType ?? "FLAT";
     const feeVal = config?.platformFeeValue ?? 0;
 

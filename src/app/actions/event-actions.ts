@@ -27,6 +27,10 @@ export async function addEvent(data: Omit<Event, "id" | "createdAt" | "updatedAt
         venue: data.venue,
         image: data.image,
         showtimes: data.showtimes,
+        artists: data.artists as any,
+        ageLimit: data.ageLimit,
+        duration: data.duration,
+        languages: data.languages,
         ticketTypes: data.ticketTypes as any,
         seatingChart: data.seatingChart as any,
       }
@@ -51,6 +55,10 @@ export async function updateEvent(id: string, data: Partial<Event>) {
         ...(data.venue && { venue: data.venue }),
         ...(data.image && { image: data.image }),
         ...(data.showtimes && { showtimes: data.showtimes }),
+        ...(data.artists !== undefined && { artists: data.artists as any }),
+        ...(data.ageLimit !== undefined && { ageLimit: data.ageLimit }),
+        ...(data.duration !== undefined && { duration: data.duration }),
+        ...(data.languages !== undefined && { languages: data.languages }),
         ...(data.ticketTypes && { ticketTypes: data.ticketTypes as any }),
         ...(data.seatingChart !== undefined && { seatingChart: data.seatingChart as any }),
       }
@@ -90,6 +98,10 @@ export async function seedEvents(sampleEvents: any[]) {
           venue: event.venue,
           image: event.image,
           showtimes: event.showtimes,
+          artists: event.artists || undefined,
+          ageLimit: event.ageLimit || undefined,
+          duration: event.duration || undefined,
+          languages: event.languages || undefined,
           ticketTypes: event.ticketTypes,
           seatingChart: event.seatingChart || null,
         }

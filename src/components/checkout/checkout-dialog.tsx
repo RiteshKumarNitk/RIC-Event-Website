@@ -135,11 +135,11 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
     }
   }, [selectedSeats, replace, isOpen, user]);
 
-  // Fetch fee breakdown when totalAmount changes
+  // Fetch fee breakdown when subtotalAmount changes
   useEffect(() => {
     const fetchFees = async () => {
-      if (totalAmount > 0) {
-        const res = await calculateFees(totalAmount);
+      if (subtotalAmount > 0) {
+        const res = await calculateFees(subtotalAmount);
         if (res.success && res.breakdown) {
           setFeeBreakdown(res.breakdown);
         }
@@ -148,7 +148,7 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
       }
     };
     fetchFees();
-  }, [totalAmount]);
+  }, [subtotalAmount]);
 
   const handleVerifyMemberId = async (index: number) => {
     const currentAttendees = form.getValues('attendees');

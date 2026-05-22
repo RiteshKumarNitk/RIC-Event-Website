@@ -81,6 +81,10 @@ model Event {
   venue        String
   image        String
   showtimes    String[]
+  artists      Json?    // Array of { name: string, photo: string, category: string }
+  ageLimit     String?  // e.g. "18+", "All ages", "16+"
+  duration     Int?     // Duration in minutes
+  languages    String[] // e.g. ["Hindi", "English"]
   ticketTypes  Json     // Array of { type: string, price: number }
   seatingChart Json?    // Complex JSON structure for seating
   createdAt    DateTime @default(now())
@@ -114,6 +118,7 @@ model Member {
   dob              DateTime
   address          String
   emergencyContact String
+  password         String?  // Hashed password for member login
   userId           String?  @unique // Linked website account
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

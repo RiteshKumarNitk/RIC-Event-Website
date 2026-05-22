@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { Member } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 export async function getMembers() {
   try {
@@ -17,9 +18,11 @@ export async function getMembers() {
 
 export async function addMember(data: Omit<Member, "id" | "createdAt" | "updatedAt">) {
   try {
-    const member = await prisma.member.create({
-      data
-    });
+    const createData: any = { ...data };
+    if (createData.password) {
+      createData.password = await bcrypt.hash(createData.password, 12);
+    }
+    const member = await prisma.member.create({ data: createData });
     return { success: true, member };
   } catch (error) {
     console.error("Error creating member:", error);
@@ -29,9 +32,13 @@ export async function addMember(data: Omit<Member, "id" | "createdAt" | "updated
 
 export async function updateMember(id: string, data: Partial<Member>) {
   try {
+    const updateData: any = { ...data };
+    if (updateData.password) {
+      updateData.password = await bcrypt.hash(updateData.password, 12);
+    }
     const member = await prisma.member.update({
       where: { id },
-      data
+      data: updateData
     });
     return { success: true, member };
   } catch (error) {
@@ -58,21 +65,23 @@ export async function seedMembers(sampleMembers: any[]) {
     }
 
     for (const member of sampleMembers) {
-      await prisma.member.create({
-        data: {
-          applicationId: member.applicationId,
-          memberId: member.memberId,
-          categoryType: member.categoryType,
-          categoryAcronym: member.categoryAcronym,
-          doa: new Date(member.doa),
-          name: member.name,
-          phone: member.phone,
-          email: member.email,
-          dob: new Date(member.dob),
-          address: member.address,
-          emergencyContact: member.emergencyContact
-        }
-      });
+      const createData: any = {
+        applicationId: member.applicationId,
+        memberId: member.memberId,
+        categoryType: member.categoryType,
+        categoryAcronym: member.categoryAcronym,
+        doa: new Date(member.doa),
+        name: member.name,
+        phone: member.phone,
+        email: member.email,
+        dob: new Date(member.dob),
+        address: member.address,
+        emergencyContact: member.emergencyContact
+      };
+      if (member.password) {
+        createData.password = await bcrypt.hash(member.password, 12);
+      }
+      await prisma.member.create({ data: createData });
     }
     
     return { success: true };

@@ -1,5 +1,5 @@
 
-export type EventCategory = "Music" | "Sports" | "Art" | "Theater" | "Seminar" | "Cultural" | "Talk";
+export type EventCategory = "Music" | "Sports" | "Art" | "Theater" | "Seminar" | "Cultural" | "Talk" | "Comedy";
 
 export type TicketType = {
   type: string;
@@ -40,6 +40,12 @@ export type SeatingChartData = {
   layout?: string;
 };
 
+export type Artist = {
+  name: string;
+  photo: string;
+  category: string;
+};
+
 export type Event = {
   id: string;
   name: string;
@@ -50,6 +56,10 @@ export type Event = {
   venue: string;
   image: string;
   showtimes: string[];
+  artists?: Artist[];
+  ageLimit?: string;
+  duration?: number;
+  languages?: string[];
   ticketTypes: TicketType[];
   hallId?: string;
   seatingChart?: SeatingChartData;

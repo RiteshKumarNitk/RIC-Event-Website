@@ -25,6 +25,11 @@ export async function getBookingByQrData(qrData: string) {
       return { success: false, error: "Booking not found." };
     }
 
+    const event = await prisma.event.findUnique({
+      where: { id: booking.eventId },
+      select: { name: true, venue: true, location: true, category: true, date: true },
+    });
+
     const checkIns = await prisma.checkIn.findMany({
       where: { bookingId: booking.id },
       select: { seatId: true, checkedInAt: true },
@@ -32,11 +37,33 @@ export async function getBookingByQrData(qrData: string) {
 
     const checkedInSeats = new Set(checkIns.map((c) => c.seatId));
 
-    const attendees = (booking.attendees as any[]).map((a) => ({
-      ...a,
-      checkedIn: checkedInSeats.has(a.seatId),
-      checkedInAt: checkIns.find((c) => c.seatId === a.seatId)?.checkedInAt || null,
-    }));
+    const attendeesRaw = booking.attendees as any[];
+
+    // Look up member details for attendees with verified member IDs
+    const memberIds = attendeesRaw
+      .filter((a) => a.isMember && a.memberId)
+      .map((a) => parseInt(a.memberId, 10))
+      .filter((id) => !isNaN(id));
+
+    const members = memberIds.length > 0
+      ? await prisma.member.findMany({
+          where: { memberId: { in: memberIds } },
+          select: { memberId: true, name: true, categoryType: true },
+        })
+      : [];
+
+    const memberMap = new Map(members.map((m) => [m.memberId, m]));
+
+    const attendees = attendeesRaw.map((a) => {
+      const memberInfo = a.isMember && a.memberId ? memberMap.get(parseInt(a.memberId, 10)) : null;
+      return {
+        ...a,
+        memberName: memberInfo?.name || null,
+        memberCategory: memberInfo?.categoryType || null,
+        checkedIn: checkedInSeats.has(a.seatId),
+        checkedInAt: checkIns.find((c) => c.seatId === a.seatId)?.checkedInAt || null,
+      };
+    });
 
     return {
       success: true,
@@ -45,6 +72,9 @@ export async function getBookingByQrData(qrData: string) {
         eventId: booking.eventId,
         eventName: booking.eventName,
         eventDate: booking.eventDate.toISOString(),
+        eventVenue: event?.venue || null,
+        eventLocation: event?.location || null,
+        eventCategory: event?.category || null,
         total: booking.total,
         bookingDate: booking.bookingDate.toISOString(),
         user: booking.user,

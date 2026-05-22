@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Event } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Clock } from "lucide-react";
+import { Calendar, MapPin, Clock, MicVocal } from "lucide-react";
 import { format } from "date-fns";
 
 interface EventCardProps {
@@ -90,6 +90,12 @@ export function EventCard({ event, variant = "default" }: EventCardProps) {
             <div className="flex items-center gap-1.5">
               <Clock className="w-3 h-3 flex-shrink-0" />
               <span className="truncate">{event.showtimes.slice(0, 2).join(", ")}</span>
+            </div>
+          )}
+          {(event as any).artists?.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <MicVocal className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{(event as any).artists.length} artist(s)</span>
             </div>
           )}
           <div className="mt-auto pt-2 flex items-center justify-between">

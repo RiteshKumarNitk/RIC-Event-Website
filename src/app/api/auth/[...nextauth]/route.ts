@@ -23,21 +23,25 @@ const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid credentials");
+          throw new Error("Email and password are required.");
         }
         
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string }
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: credentials.email as string, mode: "insensitive" } }
         });
         
-        if (!user || !user.password) {
-          throw new Error("Invalid credentials");
+        if (!user) {
+          throw new Error("No account found with this email.");
+        }
+        
+        if (!user.password) {
+          throw new Error("This account uses Google sign-in. Please sign in with Google.");
         }
         
         const isPasswordValid = await bcrypt.compare(credentials.password as string, user.password);
         
         if (!isPasswordValid) {
-          throw new Error("Invalid credentials");
+          throw new Error("Incorrect password.");
         }
         
         return user;
