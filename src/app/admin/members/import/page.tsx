@@ -45,7 +45,7 @@ export default function ImportMembersPage() {
     const res = await importMembersFromExcel(fd);
     if (res.success) {
       setResult(res as any);
-      toast({ title: "Import Complete", description: `${res.created} members created.` });
+      toast({ title: "Import Complete", description: `${(res as any).created} members created.` });
     } else {
       toast({ variant: "destructive", title: "Import Failed", description: res.error });
     }

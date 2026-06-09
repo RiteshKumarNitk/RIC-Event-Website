@@ -59,7 +59,7 @@ export default function AccountPage() {
             ...data,
             eventDate: data.eventDate.toISOString(),
             bookingDate: data.bookingDate.toISOString(),
-          })) as Booking[];
+          })) as unknown as Booking[];
           setRegisteredBookings(bookingsData);
         }
       } catch (error) {
@@ -105,7 +105,7 @@ export default function AccountPage() {
     setCancellingId(null);
   };
 
-  const initials = user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
+  const initials = user?.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "U";
 
   if (loading || !user) {
     return (

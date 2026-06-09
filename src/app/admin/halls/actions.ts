@@ -36,7 +36,7 @@ export async function createHall(data: { name: string; description: string }) {
       data: {
         name: data.name,
         description: data.description,
-        sections: sections,
+        sections: sections as any,
         totalSeats: totalSeats,
       }
     });
@@ -53,7 +53,7 @@ export async function saveHallLayout(id: string, layout: { sections: any[]; tota
     await prisma.hall.update({
       where: { id },
       data: {
-        sections: layout.sections,
+        sections: layout.sections as any,
         totalSeats: layout.totalSeats,
       }
     });

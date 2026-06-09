@@ -58,7 +58,7 @@ export function BookingFlowProvider({ children, initialEvent }: { children: Reac
       ...prev,
       event,
       selectedDate: prev.selectedDate || event.date,
-      selectedShowtime: prev.selectedShowtime || event.showtimes?.[0] ?? "",
+      selectedShowtime: prev.selectedShowtime || (event.showtimes?.[0] ?? ""),
     }));
   }, []);
 

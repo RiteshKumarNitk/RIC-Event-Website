@@ -46,7 +46,7 @@ type BookingResult = {
   eventCategory: string | null;
   total: number;
   bookingDate: string;
-  user: { name: string | null; email: string };
+  user: { name: string | null; email: string | null };
   attendees: AttendeeInfo[];
   allCheckedIn: boolean;
 };
@@ -175,7 +175,7 @@ export default function AdminCheckinPage() {
       });
       toast({ title: "Done", description: res.message });
     } else {
-      toast({ variant: "destructive", title: "Error", description: res.error || "Bulk check-in failed." });
+      toast({ variant: "destructive", title: "Error", description: (res as any).error || "Bulk check-in failed." });
     }
     setCheckingIn(false);
   };

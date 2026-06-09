@@ -73,8 +73,8 @@ export default function AdminTransactionsPage() {
         getTransactionStats(),
       ]);
       if (txRes.success) {
-        setTransactions(txRes.transactions);
-        setFiltered(txRes.transactions);
+        setTransactions((txRes.transactions as any) || []);
+        setFiltered((txRes.transactions as any) || []);
       }
       if (statsRes.success) setStats(statsRes.stats);
       setLoading(false);
