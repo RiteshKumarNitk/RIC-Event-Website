@@ -1,7 +1,7 @@
 "use client"
 
 import { SidebarProvider, Sidebar, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarHeader, SidebarContent, SidebarInset, SidebarFooter } from "@/components/ui/sidebar";
-import { Home, Calendar, Users, ShieldAlert, BadgePercent, LogOut, LayoutGrid, Newspaper, QrCode, IndianRupee, ReceiptText, Bookmark } from "lucide-react";
+import { Home, Calendar, Users, ShieldAlert, BadgePercent, LogOut, LayoutGrid, Newspaper, QrCode, IndianRupee, ReceiptText, Bookmark, Crown } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
@@ -126,6 +126,14 @@ export default function AdminLayout({
                     <SidebarMenuButton isActive={isActive('/admin/reservations')}>
                       <Bookmark />
                       <span>Reservations</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <Link href="/admin/member-bookings" passHref>
+                    <SidebarMenuButton isActive={isActive('/admin/member-bookings')}>
+                      <Crown />
+                      <span>Member Bookings</span>
                     </SidebarMenuButton>
                   </Link>
                 </SidebarMenuItem>

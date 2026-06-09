@@ -240,6 +240,7 @@ export default function SeatsPage() {
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const [bookedSeats, setBookedSeats] = useState<string[]>([]);
     const [reservedSeats, setReservedSeats] = useState<string[]>([]);
+    const [bookingsVersion, setBookingsVersion] = useState(0); // Increment to trigger refetch
 
     // Member state
     const [memberStatus, setMemberStatus] = useState<{
@@ -290,7 +291,7 @@ export default function SeatsPage() {
             }
         };
         fetch();
-    }, [id]);
+    }, [id, bookingsVersion]);
 
     useEffect(() => {
         if (event && !selectedShowtime && event.showtimes?.length > 0) {
@@ -439,7 +440,13 @@ export default function SeatsPage() {
             {event && (
                 <CheckoutDialog
                     isOpen={checkoutOpen}
-                    onOpenChange={setCheckoutOpen}
+                    onOpenChange={(open) => {
+                        // Refetch seats when dialog closes (booking may have happened)
+                        if (!open) {
+                            setBookingsVersion(v => v + 1);
+                        }
+                        setCheckoutOpen(open);
+                    }}
                     event={event}
                     selectedSeats={convertedSeats}
                 />

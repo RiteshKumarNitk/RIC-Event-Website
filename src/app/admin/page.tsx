@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
-import { DollarSign, Users, Calendar, Database, AlertTriangle, Ticket, TrendingUp, Shield, QrCode, IndianRupee } from "lucide-react";
+import { DollarSign, Users, Calendar, Database, AlertTriangle, Ticket, TrendingUp, Shield, QrCode, IndianRupee, Crown } from "lucide-react";
 import { useEvents } from "./events/events-provider";
 import { useMembers } from "./members/members-provider";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { getAdminStats } from "@/app/actions/booking-actions";
 import { seedDefaultAdmin } from "@/app/actions/admin-actions";
+import { getMemberBookingStats } from "@/app/actions/admin-member-bookings-actions";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -49,16 +50,23 @@ export default function AdminDashboard() {
   const [totalBookings, setTotalBookings] = useState(0);
   const [loadingStats, setLoadingStats] = useState(true);
   const [seedingAdmin, setSeedingAdmin] = useState(false);
+  const [memberBookingStats, setMemberBookingStats] = useState({ totalFreeSeats: 0, uniqueMembers: 0 });
 
   useEffect(() => {
     const fetchStats = async () => {
       setLoadingStats(true);
       try {
-        const res = await getAdminStats();
-        if (res.success && res.stats) {
-          setTotalRevenue(res.stats.totalRevenue);
-          setTotalUsers(res.stats.totalUsers);
-          setTotalBookings(res.stats.totalBookings);
+        const [statsRes, memberRes] = await Promise.all([
+          getAdminStats(),
+          getMemberBookingStats(),
+        ]);
+        if (statsRes.success && statsRes.stats) {
+          setTotalRevenue(statsRes.stats.totalRevenue);
+          setTotalUsers(statsRes.stats.totalUsers);
+          setTotalBookings(statsRes.stats.totalBookings);
+        }
+        if (memberRes.success && memberRes.stats) {
+          setMemberBookingStats(memberRes.stats);
         }
       } catch (error) {
         console.error("Error fetching stats:", error);
@@ -74,9 +82,9 @@ export default function AdminDashboard() {
 
   const stats = [
     { title: "Total Revenue", value: `₹${totalRevenue.toLocaleString()}`, desc: "Across all events", icon: DollarSign, color: "text-green-500" },
-    { title: "Registered Users", value: totalUsers.toString(), desc: "Total accounts", icon: Users, color: "text-blue-500" },
-    { title: "Total Events", value: events.length.toString(), desc: `${upcomingEvents.length} upcoming`, icon: Calendar, color: "text-purple-500" },
+    { title: "Registered Users", value: totalUsers.toString(), desc: "Total accounts", icon: Users, color: "text-blue-500" },        {title: "Total Events", value: events.length.toString(), desc: `${upcomingEvents.length} upcoming`, icon: Calendar, color: "text-purple-500" },
     { title: "Members", value: members.length.toString(), desc: "Registered members", icon: Ticket, color: "text-amber-500" },
+    { title: "Member Bookings", value: memberBookingStats.totalFreeSeats.toString(), desc: `${memberBookingStats.uniqueMembers} members used`, icon: Crown, color: "text-amber-500" },
   ];
 
   const handleClearAndReseed = async () => {
@@ -105,7 +113,7 @@ export default function AdminDashboard() {
         <Button asChild variant="outline"><Link href="/admin/events/create">+ New Event</Link></Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         {isLoading ? (
           <>
             <StatCardSkeleton />

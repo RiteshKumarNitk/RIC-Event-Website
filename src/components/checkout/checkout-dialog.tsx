@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import * as React from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,13 +15,16 @@ import { Event, Seat, SeatSection } from '@/lib/types';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, ArrowRight, ArrowLeft, CreditCard, User, FileText, BadgeCheck, XCircle, Smartphone, Wallet, Building, QrCode, Banknote } from 'lucide-react';
+import { CheckCircle2, ArrowRight, ArrowLeft, CreditCard, User, FileText, BadgeCheck, XCircle, Smartphone, Wallet, Building, QrCode, Banknote, Crown } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
+import { useMemberAuth } from '@/hooks/use-member-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
+import { Checkbox } from '../ui/checkbox';
 import QRCode from "react-qr-code";
-import { checkMemberIdAction } from '@/app/actions/check-member-action';
+import { authenticateMemberAction } from '@/app/actions/authenticate-member-action';
+import { autoVerifyMemberAction } from '@/app/actions/auto-verify-member-action';
 import { createBooking } from '@/app/actions/booking-actions';
 import { sendBookingConfirmation } from '@/app/actions/email-actions';
 import { calculateFees } from '@/app/actions/fee-actions';
@@ -85,6 +88,8 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [memberPasswords, setMemberPasswords] = useState<Record<number, string>>({});
+  const [verifyingMember, setVerifyingMember] = useState<Record<number, boolean>>({});
   const [feeBreakdown, setFeeBreakdown] = useState<{
     subtotal: number;
     gstPercentage: number;
@@ -95,6 +100,8 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
     total: number;
   } | null>(null);
   const { user } = useAuth();
+  const { member: loggedInMember } = useMemberAuth();
+  const [autoMemberChecked, setAutoMemberChecked] = useState(false);
   const { toast } = useToast();
   const eventIsPaid = isPaidEvent(event);
 
@@ -130,10 +137,50 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
             memberId: '',
             isMember: false,
             memberIdVerified: false,
+            memberCheckbox: false,
         }));
         replace(attendeesData);
     }
   }, [selectedSeats, replace, isOpen, user]);
+
+  // Auto-detect logged-in member via JWT session and pre-fill the first attendee
+  useEffect(() => {
+    if (!isOpen || !loggedInMember || autoMemberChecked) return;
+
+    const autoVerify = async () => {
+      const currentAttendees = form.getValues('attendees');
+      if (currentAttendees.length === 0) return;
+
+      const result = await autoVerifyMemberAction(event.id);
+
+      if (result.isValid && result.memberId && !result.alreadyUsed) {
+        const updated = [...currentAttendees];
+        updated[0] = {
+          ...updated[0],
+          attendeeName: result.memberName || loggedInMember.name,
+          memberId: String(result.memberId),
+          isMember: true,
+          memberIdVerified: true,
+          memberCheckbox: true,
+          price: 0, // Free for members
+        };
+        replace(updated);
+        toast({
+          title: "Member Session Detected",
+          description: `${result.memberName} — free ticket applied automatically!`,
+        });
+      } else if (result.isValid && result.alreadyUsed) {
+        toast({
+          variant: "destructive",
+          title: "Already Booked",
+          description: "You've already used your free member booking for this event.",
+        });
+      }
+      setAutoMemberChecked(true);
+    };
+
+    autoVerify();
+  }, [isOpen, loggedInMember, autoMemberChecked, event.id, form, replace, toast]);
 
   // Fetch fee breakdown when subtotalAmount changes
   useEffect(() => {
@@ -154,9 +201,11 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
     const currentAttendees = form.getValues('attendees');
     const currentAttendee = currentAttendees[index];
     const memberIdToVerify = currentAttendee.memberId;
+    const password = memberPasswords[index] || '';
 
     if (!memberIdToVerify) return;
 
+    // Check if this member ID was already used for another attendee in the same form
     const isIdAlreadyUsedInForm = currentAttendees.some((attendee: any, idx: number) => 
         idx !== index && attendee.isMember && String(attendee.memberId) === String(memberIdToVerify)
     );
@@ -165,8 +214,15 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
         toast({ variant: "destructive", title: "Member ID in Use", description: "This Member ID has already been applied to another ticket in this booking." });
         return;
     }
+
+    if (!password) {
+        toast({ variant: "destructive", title: "Password Required", description: "Please enter the member password to verify." });
+        return;
+    }
+
+    setVerifyingMember((prev) => ({ ...prev, [index]: true }));
     
-    const result = await checkMemberIdAction(memberIdToVerify, event.id);
+    const result = await authenticateMemberAction(memberIdToVerify, password, event.id);
 
     let updatedAttendee;
     if (result.isValid) {
@@ -179,12 +235,20 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
       toast({ title: "Member Verified", description: `${result.memberName} gets a free ticket!`});
     } else {
       updatedAttendee = { ...currentAttendee, isMember: false, memberIdVerified: true };
-      toast({ variant: "destructive", title: "Verification Failed", description: result.message});
+      toast({ variant: "destructive", title: "Verification Failed", description: result.message });
     }
     
     const newAttendees = [...currentAttendees];
     newAttendees[index] = updatedAttendee;
     replace(newAttendees);
+    setVerifyingMember((prev) => ({ ...prev, [index]: false }));
+    
+    // Clear password after verification attempt
+    setMemberPasswords((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
   };
 
   const buildPaymentInfo = () => {
@@ -278,6 +342,9 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
     setStep(1);
     setBookingId(null);
     setPaymentMethod(null);
+    setMemberPasswords({});
+    setVerifyingMember({});
+    setAutoMemberChecked(false);
     onOpenChange(false);
   }
 
@@ -286,7 +353,7 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
       case 1:
         return <OrderSummaryStep event={event} selectedSeats={selectedSeats} subtotal={subtotalAmount} total={totalAmount} isPaid={eventIsPaid} feeBreakdown={feeBreakdown} />;
       case 2:
-        return <AttendeeDetailsStep form={form} fields={fields} onVerify={handleVerifyMemberId} />;
+        return <AttendeeDetailsStep form={form} fields={fields} onVerify={handleVerifyMemberId} memberPasswords={memberPasswords} setMemberPasswords={setMemberPasswords} verifyingMember={verifyingMember} />;
       case 3:
         return (
           <PaymentStep
@@ -425,61 +492,152 @@ const OrderSummaryStep = ({ event, selectedSeats, subtotal, total, isPaid, feeBr
   </div>
 );
 
-const AttendeeDetailsStep = ({ form, fields, onVerify }: { form: any, fields: any[], onVerify: (index: number) => void }) => (
-  <div>
-    <h3 className="font-semibold mb-4 text-lg">Attendee Details</h3>
-    <div className="space-y-6">
-      {fields.map((field, index) => (
-        <div key={field.id} className="rounded-lg border p-4 space-y-4">
-          <h4 className="font-semibold text-primary">Seat: {form.getValues(`attendees.${index}.seatId`).split('-')[1]}</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <FormField
-                control={form.control}
-                name={`attendees.${index}.attendeeName`}
-                render={({ field }) => (
+const AttendeeDetailsStep = ({ form, fields, onVerify, memberPasswords, setMemberPasswords, verifyingMember }: { 
+  form: any; 
+  fields: any[]; 
+  onVerify: (index: number) => void;
+  memberPasswords: Record<number, string>;
+  setMemberPasswords: React.Dispatch<React.SetStateAction<Record<number, string>>>;
+  verifyingMember: Record<number, boolean>;
+}) => {
+  return (
+    <div>
+      <h3 className="font-semibold mb-4 text-lg">Attendee Details</h3>
+      <div className="space-y-6">
+        {fields.map((field, index) => {
+          const isVerifiedMember = form.watch(`attendees.${index}.isMember`);
+          const memberCheckbox = form.watch(`attendees.${index}.memberCheckbox`) ?? false;
+          const hasMemberId = form.watch(`attendees.${index}.memberId`);
+          const hasVerified = form.watch(`attendees.${index}.memberIdVerified`);
+
+          return (
+            <div key={field.id} className="rounded-lg border p-4 space-y-4">
+              <h4 className="font-semibold text-primary">
+                Seat: {form.getValues(`attendees.${index}.seatId`).split('-')[1]}
+                {isVerifiedMember && (
+                  <span className="ml-2 text-xs font-normal text-green-600">
+                    (<Crown className="inline h-3 w-3" /> Free Ticket)
+                  </span>
+                )}
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name={`attendees.${index}.attendeeName`}
+                  render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Attendee Name</FormLabel>
-                        <FormControl><Input {...field} placeholder="Full Name" disabled={form.getValues(`attendees.${index}.isMember`)} /></FormControl>
-                        <FormMessage />
+                      <FormLabel>Attendee Name</FormLabel>
+                      <FormControl><Input {...field} placeholder="Full Name" disabled={isVerifiedMember} /></FormControl>
+                      <FormMessage />
                     </FormItem>
-                )}
-            />
-            <div>
-                <FormLabel>Member ID (Optional)</FormLabel>
-                 <div className="flex items-center gap-2">
-                     <Controller
-                        control={form.control}
-                        name={`attendees.${index}.memberId`}
-                        render={({ field }) => (
-                            <Input {...field} placeholder="e.g. 13" disabled={form.getValues(`attendees.${index}.isMember`)} />
-                        )}
-                    />
-                    {!form.watch(`attendees.${index}.isMember`) ? (
-                        <Button type="button" variant="secondary" onClick={() => onVerify(index)} disabled={!form.watch(`attendees.${index}.memberId`)}>Verify ID</Button>
-                    ) : null}
+                  )}
+                />
+
+                {/* Member checkbox */}
+                <div className="flex items-end pb-2">
+                  <Controller
+                    control={form.control}
+                    name={`attendees.${index}.memberCheckbox`}
+                    render={({ field: { value, onChange } }) => (
+                      <div className="flex items-center gap-2">
+                        <Checkbox 
+                          id={`member-checkbox-${index}`}
+                          checked={value || false}
+                          onCheckedChange={(checked) => {
+                            onChange(checked);
+                            // Reset member-related fields when unchecking
+                            if (!checked) {
+                              form.setValue(`attendees.${index}.memberId`, '');
+                              form.setValue(`attendees.${index}.isMember`, false);
+                              form.setValue(`attendees.${index}.memberIdVerified`, false);
+                            }
+                          }}
+                          disabled={isVerifiedMember}
+                        />
+                        <label htmlFor={`member-checkbox-${index}`} className="text-sm font-medium cursor-pointer select-none">
+                          I am an RIC Member
+                        </label>
+                      </div>
+                    )}
+                  />
                 </div>
-            </div>
-          </div>
-           <div className="flex justify-end">
-                {form.getValues(`attendees.${index}.memberIdVerified`) && (
-                    form.getValues(`attendees.${index}.isMember`) ? (
+              </div>
+
+              {/* Member ID & password fields — only shown when checkbox is checked */}
+              {memberCheckbox && (
+                <div className="space-y-3 pl-4 border-l-2 border-amber-200">
+                  <div className="flex items-center gap-2">
+                    <Controller
+                      control={form.control}
+                      name={`attendees.${index}.memberId`}
+                      render={({ field }) => (
+                        <Input {...field} placeholder="Member ID (e.g. 13)" disabled={isVerifiedMember} />
+                      )}
+                    />
+                    {!isVerifiedMember ? (
+                      <Button 
+                        type="button" 
+                        variant="secondary" 
+                        onClick={() => onVerify(index)} 
+                        disabled={!hasMemberId || verifyingMember[index]}
+                      >
+                        {verifyingMember[index] ? 'Verifying...' : 'Verify ID'}
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  {/* Password field - shown only when member ID is entered and not yet verified */}
+                  {hasMemberId && !isVerifiedMember && !hasVerified && (
+                    <div>
+                      <Input
+                        type="password"
+                        placeholder="Member password"
+                        value={memberPasswords[index] || ''}
+                        onChange={(e) => setMemberPasswords((prev) => ({ ...prev, [index]: e.target.value }))}
+                        disabled={verifyingMember[index]}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && hasMemberId && !verifyingMember[index]) {
+                            onVerify(index);
+                          }
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Enter the password associated with this Member ID</p>
+                    </div>
+                  )}
+
+                  {/* Status badge */}
+                  <div className="flex justify-end">
+                    {hasVerified && (
+                      isVerifiedMember ? (
                         <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-                            <BadgeCheck className="mr-2 h-4 w-4" />
-                            Member (Ticket is Free)
+                          <BadgeCheck className="mr-2 h-4 w-4" />
+                          Member Verified (Free Ticket)
                         </Badge>
-                    ) : (
+                      ) : (
                         <Badge variant="destructive">
-                            <XCircle className="mr-2 h-4 w-4" />
-                            Guest
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Guest
                         </Badge>
-                    )
-                )}
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* If member not checked and not verified, show a hint */}
+              {!memberCheckbox && !hasVerified && (
+                <p className="text-xs text-muted-foreground italic">
+                  Check "I am an RIC Member" to apply a free member ticket.
+                </p>
+              )}
             </div>
-        </div>
-      ))}
+          );
+        })}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const PaymentStep = ({
   total,
