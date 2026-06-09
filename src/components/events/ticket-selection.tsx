@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Minus, Ticket } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface TicketSelectionProps {
   event: Event;
@@ -32,41 +33,74 @@ export function TicketSelection({ event, onProceed }: TicketSelectionProps) {
   };
 
   return (
-    <Card className="sticky top-24">
-        <CardHeader>
-            <CardTitle className="text-2xl">Select Tickets</CardTitle>
-            <CardDescription>
-                Choose the number of seats you want to book.
-            </CardDescription>
+    <Card className="shadow-lg border-none">
+        <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+                <div>
+                    <CardTitle className="text-2xl font-bold text-gray-800 mb-1">Select Tickets</CardTitle>
+                    <CardDescription className="text-sm text-gray-500">
+                        Choose the number of seats you want to book.
+                    </CardDescription>
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center bg-gray-50 rounded-full">
+                    <Ticket className="h-5 w-5 text-[#F84464]" />
+                </div>
+            </div>
         </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center gap-6">
+        <CardContent className="flex flex-col items-center justify-center gap-6 pt-0">
              <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={() => setTicketCount(Math.max(1, ticketCount - 1))} disabled={ticketCount <= 1}>
-                    <Minus className="h-4 w-4" />
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setTicketCount(Math.max(1, ticketCount - 1))} 
+                  disabled={ticketCount <= 1}
+                  className="w-10 h-10 flex items-center justify-center rounded-lg border-gray-300 hover:border-gray-400 transition-colors"
+                >
+                    <Minus className="h-4 w-4 text-gray-500" />
                 </Button>
-                <span className="text-4xl font-bold w-20 text-center">{ticketCount}</span>
-                <Button variant="outline" size="icon" onClick={() => setTicketCount(Math.min(6, ticketCount + 1))}>
-                    <Plus className="h-4 w-4" />
+                <span className="text-3xl font-bold text-gray-800 min-w-[44px] text-center">{ticketCount}</span>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setTicketCount(Math.min(6, ticketCount + 1))}
+                  className="w-10 h-10 flex items-center justify-center rounded-lg border-gray-300 hover:border-gray-400 transition-colors"
+                >
+                    <Plus className="h-4 w-4 text-gray-500" />
                 </Button>
             </div>
-            {event.ticketTypes.length > 0 && (
-              <div className="w-full space-y-2">
+            <div className="w-full">
+              <div className="space-y-2 pt-4 border-t border-gray-100">
                 {event.ticketTypes.map((t, i) => (
-                  <div key={i} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t.type}</span>
-                    <span className="font-medium">₹{t.price}</span>
+                  <div key={i} className="flex justify-between px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+                    <span className="text-sm font-medium text-gray-700">{t.type}</span>
+                    <span className="text-sm font-semibold">{t.price === 0 ? 'Free' : `₹${t.price}`}</span>
                   </div>
                 ))}
+                {event.ticketTypes.length === 0 && (
+                  <div className="flex justify-between px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+                    <span className="text-sm font-medium text-gray-700">General Admission</span>
+                    <span className="text-sm font-semibold">{isFreeEvent ? 'Free' : `Starting from ₹${minPrice}`}</span>
+                  </div>
+                )}
               </div>
-            )}
-             <div className="text-center text-sm text-muted-foreground">
-                <p>Starting from ₹{minPrice}</p>
+            </div>
+             <div className="text-center text-sm text-gray-500 pt-4 border-t border-gray-100">
+                <p className="flex items-center justify-center gap-2">
+                  <span className="text-xs font-medium">Starting from</span>
+                  <span className="font-semibold text-gray-800">₹{minPrice}</span>
+                </p>
              </div>
         </CardContent>
-        <CardFooter>
-             <Button onClick={handleProceed} size="lg" className="w-full">
-                <Ticket className="mr-2 h-4 w-4" />
-                {event.seatingChart ? `Select ${ticketCount} Seats` : 'Register'}
+        <CardFooter className="pt-4">
+             <Button 
+               onClick={handleProceed} 
+               size="lg" 
+               className="w-full bg-[#F84464] hover:bg-[#F84464]/90 text-white font-medium py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+             >
+                <Ticket className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  {event.seatingChart ? `Select ${ticketCount} Seats` : 'Register'}
+                </span>
             </Button>
         </CardFooter>
     </Card>
