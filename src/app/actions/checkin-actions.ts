@@ -109,23 +109,25 @@ export async function checkInAttendee(bookingId: string, seatId: string, attende
 }
 
 export async function checkInAllAttendees(bookingId: string, eventId: string, attendees: { seatId: string; attendeeName: string }[], checkedBy?: string) {
-  try {
-    const results = await Promise.allSettled(
-      attendees.map((a) =>
-        prisma.checkIn.upsert({
-          where: { bookingId_seatId: { bookingId, seatId: a.seatId } },
-          update: {},
-          create: { bookingId, eventId, seatId: a.seatId, attendeeName: a.attendeeName, checkedBy },
-        })
-      )
-    );
+  const results = await Promise.allSettled(
+    attendees.map((a) =>
+      prisma.checkIn.upsert({
+        where: { bookingId_seatId: { bookingId, seatId: a.seatId } },
+        update: {},
+        create: { bookingId, eventId, seatId: a.seatId, attendeeName: a.attendeeName, checkedBy },
+      })
+    )
+  );
 
-    const succeeded = results.filter((r) => r.status === "fulfilled").length;
-    return { success: true, message: `${succeeded} of ${attendees.length} checked in.` };
-  } catch (error) {
-    console.error("Error checking in all:", error);
-    return { success: false, error: "Failed to check in all attendees." };
+  const succeeded = results.filter((r) => r.status === "fulfilled").length;
+  const failed = results.filter((r) => r.status === "rejected").length;
+
+  if (failed > 0) {
+    console.error("Some check-ins failed:", results.filter(r => r.status === "rejected").map(r => (r as PromiseRejectedResult).reason));
+    return { success: failed < attendees.length, message: `${succeeded} of ${attendees.length} checked in (${failed} failed).` };
   }
+
+  return { success: true, message: `${succeeded} of ${attendees.length} checked in.` };
 }
 
 export async function getCheckedInCount(eventId: string) {

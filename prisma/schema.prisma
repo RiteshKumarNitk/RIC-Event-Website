@@ -91,6 +91,7 @@ model Event {
   updatedAt    DateTime @updatedAt
   bookings     Booking[]
   blockedSeats BlockedSeat[]
+  reservations SeatReservation[]
 }
 
 // Admin-managed blocked seats (unavailable for booking)
@@ -172,4 +173,37 @@ model CheckIn {
   booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@unique([bookingId, seatId])
+}
+
+// Temporary seat locks to prevent double-booking race conditions
+model SeatLock {
+  id        String   @id @default(cuid())
+  eventId   String
+  seatId    String
+  userId    String
+  expiresAt DateTime // Auto-expire locks after 10 minutes
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, seatId])
+  @@index([expiresAt])
+}
+
+// Member seat reservations — allows members to pre-reserve seats for themselves + guests
+model SeatReservation {
+  id           String   @id @default(cuid())
+  eventId      String
+  seatId       String
+  memberId     Int      // References Member.memberId
+  memberName   String
+  guestCount   Int      @default(0) // Number of additional seats reserved for guests
+  status       String   @default("RESERVED") // RESERVED, CONFIRMED, CANCELLED, EXPIRED
+  expiresAt    DateTime // Reservation TTL (e.g. 30 minutes before event)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, seatId])
+  @@index([eventId, memberId])
+  @@index([expiresAt])
 }

@@ -6,8 +6,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { EventsProvider } from "@/app/admin/events/events-provider";
-import { MembersProvider } from "@/app/admin/members/members-provider";
 import { MemberAuthProvider } from "@/hooks/use-member-auth";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -40,14 +40,14 @@ export default function RootLayout({
             disableTransitionOnChange
         >
           <AuthProvider>
-            <EventsProvider>
-              <MembersProvider>
+            <ErrorBoundary fallbackTitle="Events Unavailable" fallbackDescription="Could not load events. Please try again later.">
+              <EventsProvider>
                 <MemberAuthProvider>
                   {children}
                   <Toaster />
                 </MemberAuthProvider>
-              </MembersProvider>
-            </EventsProvider>
+              </EventsProvider>
+            </ErrorBoundary>
           </AuthProvider>
         </ThemeProvider>
       </body>

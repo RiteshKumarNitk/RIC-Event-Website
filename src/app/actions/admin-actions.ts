@@ -2,9 +2,11 @@
 
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { requireAdminSession } from "@/lib/server-auth";
 
 export async function seedDefaultAdmin() {
   try {
+    await requireAdminSession();
     const existing = await prisma.user.findUnique({
       where: { email: "admin@ric.com" },
     });

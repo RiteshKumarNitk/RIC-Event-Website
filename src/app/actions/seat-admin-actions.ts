@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireAdminSession } from "@/lib/server-auth";
 
 export async function getBlockedSeats(eventId: string) {
   try {
@@ -17,6 +18,7 @@ export async function getBlockedSeats(eventId: string) {
 
 export async function toggleBlockSeat(eventId: string, seatId: string, reason?: string) {
   try {
+    await requireAdminSession();
     const existing = await prisma.blockedSeat.findUnique({
       where: { eventId_seatId: { eventId, seatId } },
     });
@@ -39,6 +41,7 @@ export async function toggleBlockSeat(eventId: string, seatId: string, reason?: 
 
 export async function blockMultipleSeats(eventId: string, seatIds: string[]) {
   try {
+    await requireAdminSession();
     const existing = await prisma.blockedSeat.findMany({
       where: { eventId, seatId: { in: seatIds } },
       select: { seatId: true },
@@ -62,6 +65,7 @@ export async function blockMultipleSeats(eventId: string, seatIds: string[]) {
 
 export async function unblockAllSeats(eventId: string) {
   try {
+    await requireAdminSession();
     const { count } = await prisma.blockedSeat.deleteMany({ where: { eventId } });
     revalidatePath(`/events/${eventId}/seats`);
     return { success: true, count };
@@ -100,6 +104,7 @@ export async function adminCreateBooking(data: {
   paymentInfo?: any;
 }) {
   try {
+    await requireAdminSession();
     const member = await prisma.member.findUnique({
       where: { memberId: data.memberId },
     });

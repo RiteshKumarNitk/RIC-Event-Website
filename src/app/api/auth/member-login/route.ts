@@ -3,10 +3,9 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { SignJWT } from "jose";
+import { getJwtSecret } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
-
-const getSecret = () => new TextEncoder().encode(process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "fallback-secret-key-for-dev");
 
 export async function POST(req: Request) {
   try {
@@ -36,12 +35,12 @@ export async function POST(req: Request) {
     })
       .setProtectedHeader({ alg: "HS256" })
       .setExpirationTime("7d")
-      .sign(getSecret());
+      .sign(getJwtSecret());
 
     const cookieStore = await cookies();
     cookieStore.set("member-token", token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,

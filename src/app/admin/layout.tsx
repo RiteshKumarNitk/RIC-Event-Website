@@ -1,15 +1,15 @@
 "use client"
 
 import { SidebarProvider, Sidebar, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarHeader, SidebarContent, SidebarInset, SidebarFooter } from "@/components/ui/sidebar";
-import { Home, Calendar, Users, ShieldAlert, BadgePercent, LogOut, LayoutGrid, Newspaper, QrCode, IndianRupee, ReceiptText } from "lucide-react";
+import { Home, Calendar, Users, ShieldAlert, BadgePercent, LogOut, LayoutGrid, Newspaper, QrCode, IndianRupee, ReceiptText, Bookmark } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { EventsProvider } from "./events/events-provider";
 import { MembersProvider } from "./members/members-provider";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 export default function AdminLayout({
   children,
@@ -58,9 +58,7 @@ export default function AdminLayout({
   }
 
   return (
-    <EventsProvider>
-      <MembersProvider>
-        <SidebarProvider>
+    <SidebarProvider>
           <Sidebar>
             <SidebarHeader>
               <div className="flex items-center gap-2">
@@ -124,6 +122,14 @@ export default function AdminLayout({
                   </Link>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
+                  <Link href="/admin/reservations" passHref>
+                    <SidebarMenuButton isActive={isActive('/admin/reservations')}>
+                      <Bookmark />
+                      <span>Reservations</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
                   <Link href="/admin/checkin" passHref>
                     <SidebarMenuButton isActive={isActive('/admin/checkin')}>
                       <QrCode />
@@ -170,11 +176,13 @@ export default function AdminLayout({
           </Sidebar>
           <SidebarInset>
             <div className="p-4 md:p-8">
-              {children}
+              <ErrorBoundary fallbackTitle="Members Unavailable" fallbackDescription="Could not load members. Please try again later.">
+                <MembersProvider>
+                  {children}
+                </MembersProvider>
+              </ErrorBoundary>
             </div>
           </SidebarInset>
         </SidebarProvider>
-      </MembersProvider>
-    </EventsProvider>
   );
 }

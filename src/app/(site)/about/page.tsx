@@ -133,7 +133,7 @@ export default function AboutPage() {
                       <Phone className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                       <div>
                         <p className="font-medium">Phone</p>
-                        <p className="text-sm text-muted-foreground">+91 141 XXXXXXX</p>
+                        <p className="text-sm text-muted-foreground">+91 141 XXX XXXX</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">

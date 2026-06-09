@@ -1,25 +1,18 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { jwtVerify } from "jose";
 import { prisma } from "@/lib/prisma";
+import { getCurrentMember } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
-const getSecret = () => new TextEncoder().encode(process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "fallback-secret-key-for-dev");
-
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("member-token")?.value;
-    if (!token) {
+    const currentMember = await getCurrentMember();
+    if (!currentMember) {
       return NextResponse.json({ member: null });
     }
 
-    const { payload } = await jwtVerify(token, getSecret());
-    const memberId = payload.memberId as number;
-
     const member = await prisma.member.findUnique({
-      where: { memberId },
+      where: { memberId: currentMember.memberId },
     });
 
     if (!member) {

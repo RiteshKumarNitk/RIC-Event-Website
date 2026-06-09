@@ -239,6 +239,7 @@ export default function SeatsPage() {
     const [selectedSeats, setSelectedSeats] = useState<{ seat: Seat; section: { sectionName: string; price: number } }[]>([]);
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const [bookedSeats, setBookedSeats] = useState<string[]>([]);
+    const [reservedSeats, setReservedSeats] = useState<string[]>([]);
 
     // Member state
     const [memberStatus, setMemberStatus] = useState<{
@@ -276,13 +277,16 @@ export default function SeatsPage() {
         check();
     }, [user, id]);
 
-    // Fetch booked seats
+    // Fetch booked and reserved seats
     useEffect(() => {
         const fetch = async () => {
             if (!id) return;
-            const res = await getBookedSeats(id);
-            if (res.success && res.seatIds) {
-                setBookedSeats(res.seatIds);
+            const bookedRes = await getBookedSeats(id);
+            if (bookedRes.success && bookedRes.seatIds) {
+                setBookedSeats(bookedRes.seatIds);
+            }
+            if (bookedRes.success && bookedRes.reservedSeats) {
+                setReservedSeats(Object.keys(bookedRes.reservedSeats));
             }
         };
         fetch();
@@ -412,6 +416,7 @@ export default function SeatsPage() {
                                 isMember={memberStatus?.isMember ?? false}
                                 memberLabel={memberStatus?.name ? `${memberStatus.name} (${memberStatus.categoryAcronym || "Member"})` : undefined}
                                 bookedSeats={bookedSeats}
+                                reservedSeats={reservedSeats}
                             />
                         </div>
                     </div>

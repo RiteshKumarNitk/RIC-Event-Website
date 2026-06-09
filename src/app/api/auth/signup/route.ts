@@ -13,7 +13,6 @@ const signupSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  console.log('[SIGNUP_ROUTE] DATABASE_URL present:', !!process.env.DATABASE_URL);
   try {
     const text = await req.text();
     if (!text) {

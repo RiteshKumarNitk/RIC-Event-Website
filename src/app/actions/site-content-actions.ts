@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdminSession } from "@/lib/server-auth";
 
 export type SiteContentSection = {
   id: string;
@@ -34,6 +35,7 @@ export async function upsertSiteContent(
   data: { title?: string; subtitle?: string; content?: any }
 ) {
   try {
+    await requireAdminSession();
     const existing = await prisma.siteContent.findUnique({ where: { section } });
     if (existing) {
       await prisma.siteContent.update({

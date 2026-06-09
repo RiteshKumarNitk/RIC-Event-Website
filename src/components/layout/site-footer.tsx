@@ -49,15 +49,15 @@ export function SiteFooter() {
               events, performances, and conferences.
             </p>
             <div className="flex gap-3">
-              <Link href="#" className="h-9 w-9 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-amber-600 hover:text-white transition-all">
+              <span className="h-9 w-9 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-not-allowed" title="Coming soon">
                 <Facebook className="h-4 w-4" />
-              </Link>
-              <Link href="#" className="h-9 w-9 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-amber-600 hover:text-white transition-all">
+              </span>
+              <span className="h-9 w-9 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-not-allowed" title="Coming soon">
                 <Twitter className="h-4 w-4" />
-              </Link>
-              <Link href="#" className="h-9 w-9 rounded-full bg-zinc-800 flex items-center justify-center hover:bg-amber-600 hover:text-white transition-all">
+              </span>
+              <span className="h-9 w-9 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 cursor-not-allowed" title="Coming soon">
                 <Instagram className="h-4 w-4" />
-              </Link>
+              </span>
             </div>
           </div>
 

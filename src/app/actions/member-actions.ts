@@ -3,6 +3,23 @@
 import { prisma } from "@/lib/prisma";
 import { Member } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { z } from "zod";
+import { requireAdminSession } from "@/lib/server-auth";
+
+const createMemberSchema = z.object({
+  applicationId: z.number().min(1, "Application ID is required"),
+  memberId: z.number().min(1, "Member ID is required"),
+  categoryType: z.string().min(1, "Category type is required"),
+  categoryAcronym: z.string().min(1, "Category acronym is required"),
+  doa: z.coerce.date(),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z.string().min(10, "Phone must be at least 10 digits"),
+  email: z.string().email("Invalid email address"),
+  dob: z.coerce.date(),
+  address: z.string().min(1, "Address is required"),
+  emergencyContact: z.string().min(10, "Emergency contact must be at least 10 digits"),
+  password: z.string().min(8, "Password must be at least 8 characters").optional(),
+});
 
 export async function getMembers() {
   try {
@@ -18,7 +35,12 @@ export async function getMembers() {
 
 export async function addMember(data: Omit<Member, "id" | "createdAt" | "updatedAt">) {
   try {
-    const createData: any = { ...data };
+    await requireAdminSession();
+    const parsed = createMemberSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.errors[0].message };
+    }
+    const createData: any = { ...parsed.data };
     if (createData.password) {
       createData.password = await bcrypt.hash(createData.password, 12);
     }
@@ -32,6 +54,7 @@ export async function addMember(data: Omit<Member, "id" | "createdAt" | "updated
 
 export async function updateMember(id: string, data: Partial<Member>) {
   try {
+    await requireAdminSession();
     const updateData: any = { ...data };
     if (updateData.password) {
       updateData.password = await bcrypt.hash(updateData.password, 12);
@@ -47,8 +70,10 @@ export async function updateMember(id: string, data: Partial<Member>) {
   }
 }
 
+/** @requiresAdmin */
 export async function deleteMember(id: string) {
   try {
+    await requireAdminSession();
     await prisma.member.delete({ where: { id } });
     return { success: true };
   } catch (error) {
@@ -57,8 +82,10 @@ export async function deleteMember(id: string) {
   }
 }
 
+/** @requiresAdmin */
 export async function seedMembers(sampleMembers: any[]) {
   try {
+    await requireAdminSession();
     const existingMembers = await prisma.member.count();
     if (existingMembers > 0) {
       return { success: false, error: "Database already has members" };
@@ -91,8 +118,10 @@ export async function seedMembers(sampleMembers: any[]) {
   }
 }
 
+/** @requiresAdmin - Destructive action */
 export async function deleteAllMembers() {
   try {
+    await requireAdminSession();
     await prisma.member.deleteMany({});
     return { success: true };
   } catch (error) {

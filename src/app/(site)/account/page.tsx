@@ -94,7 +94,8 @@ export default function AccountPage() {
 
   const handleCancel = async (bookingId: string) => {
     setCancellingId(bookingId);
-    const res = await cancelBooking(bookingId);
+    const userId = (user as any)?.uid || (user as any)?.id;
+    const res = await cancelBooking(bookingId, userId || '');
     if (res.success) {
       toast({ title: "Cancelled", description: "Booking cancelled successfully." });
       setRegisteredBookings((prev) => prev.filter((b) => b.id !== bookingId));
@@ -223,7 +224,7 @@ export default function AccountPage() {
                               <p className="font-semibold">{booking.eventName}</p>
                               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1"><Ticket className="h-3 w-3" />{attendees} ticket{attendees !== 1 ? 's' : ''}</span>
-                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" />${booking.total}</span>
+                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" />₹{booking.total}</span>
                                 {isPast && <Badge variant="outline" className="text-xs">Past</Badge>}
                               </div>
                             </div>

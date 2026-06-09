@@ -30,6 +30,7 @@ interface SeatState {
   category: SeatCategory;
   price: number;
   isBooked: boolean;
+  isReserved?: boolean;
   membersOnly?: boolean;
 }
 
@@ -42,6 +43,7 @@ export function SeatingChart({
   isMember = false,
   memberLabel,
   bookedSeats = [],
+  reservedSeats = [],
 }: {
   event: Event;
   ticketCount: number;
@@ -51,6 +53,7 @@ export function SeatingChart({
   isMember?: boolean;
   memberLabel?: string;
   bookedSeats?: string[];
+  reservedSeats?: string[];
 }) {
   const [selectedSeats, setSelectedSeats] = useState<SeatState[]>([]);
   const [zoom, setZoom] = useState(1);
@@ -154,6 +157,10 @@ export function SeatingChart({
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-4 h-4 rounded-sm bg-[#F84464]" />
             <span className="text-[10px] font-bold uppercase text-gray-500">Selected</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-4 h-4 rounded-sm bg-[#fde68a] border border-amber-400" />
+            <span className="text-[10px] font-bold uppercase text-gray-500">Reserved</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-4 h-4 rounded-sm bg-gray-200 border border-gray-300" />
@@ -266,6 +273,8 @@ export function SeatingChart({
                       const isSelected = selectedSeats.some(s => s.id === seatId);
                       const colors = CATEGORY_COLORS[block.category];
 
+                      const isReserved = reservedSeats.includes(seatId);
+                      const isBooked = bookedSeats.includes(seatId);
                       const seatState: SeatState = {
                         id: seatId,
                         blockId: block.id,
@@ -273,9 +282,13 @@ export function SeatingChart({
                         col: seatNum,
                         category: block.category,
                         price: block.membersOnly ? 0 : (event.ticketTypes.find(t => t.type === block.category)?.price || 0),
-                        isBooked: bookedSeats.includes(seatId),
+                        isBooked: isBooked || isReserved,
+                        isReserved,
                         membersOnly: block.membersOnly,
                       };
+
+                      const seatFill = isBooked ? "#e2e8f0" : isReserved ? "#fde68a" : isSelected ? "#F84464" : colors.fill;
+                      const seatStroke = isBooked ? "#cbd5e1" : isReserved ? "#f59e0b" : isSelected ? "#dc2626" : colors.stroke;
 
                       return (
                         <g
@@ -292,8 +305,8 @@ export function SeatingChart({
                             cx={seatX + SEAT_R}
                             cy={rowY + SEAT_R}
                             r={SEAT_R}
-                            fill={seatState.isBooked ? "#e2e8f0" : isSelected ? "#F84464" : colors.fill}
-                            stroke={seatState.isBooked ? "#cbd5e1" : isSelected ? "#dc2626" : colors.stroke}
+                            fill={seatFill}
+                            stroke={seatStroke}
                             strokeWidth={isSelected ? 1.5 : 1}
                             className="transition-colors duration-200"
                           />
