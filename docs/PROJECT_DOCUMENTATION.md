@@ -325,7 +325,6 @@ src/
 ```
 DATABASE_URL=postgresql://...        # Neon PostgreSQL connection string
 NEXTAUTH_SECRET=...                 # NextAuth JWT secret (50+ chars)
-NEXTAUTH_URL=http://localhost:9002  # App URL
 GOOGLE_CLIENT_ID=...               # (Optional) Google OAuth
 GOOGLE_CLIENT_SECRET=...           # (Optional) Google OAuth
 SMTP_HOST=...                      # Email server for booking confirmations
