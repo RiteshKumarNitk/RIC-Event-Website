@@ -117,6 +117,20 @@ export async function createBooking(data: any) {
       };
     }
 
+    // 3.5 Check SeatReservations
+    const reservations = await prisma.seatReservation.findMany({
+      where: { eventId, seatId: { in: seatIds }, status: { in: ["RESERVED", "CONFIRMED"] } }
+    });
+    
+    if (reservations.length > 0) {
+      for (const res of reservations) {
+        const matchingAttendee = attendees.find((a: any) => a.seatId === res.seatId);
+        if (!matchingAttendee || !matchingAttendee.isMember || String(matchingAttendee.memberId) !== String(res.memberId)) {
+           return { success: false, error: `Seat ${res.seatId} is reserved for another member.` };
+        }
+      }
+    }
+
     // 4. Acquire locks for the seats (upsert to handle re-tries)
     const lockExpiry = new Date(Date.now() + SEAT_LOCK_TTL_MS);
     await prisma.$transaction(
@@ -194,9 +208,8 @@ export async function getBookedSeats(eventId: string) {
     // Add all admin-blocked seats
     blockedSeats.forEach(bs => seatIds.add(bs.seatId));
     
-    // Add all reserved seats (shown as unavailable to non-members)
+    // Add all reserved seats (shown as unavailable to non-members, but available to the reserving member)
     reservations.forEach(r => {
-      seatIds.add(r.seatId);
       reservedMap.set(r.seatId, { memberId: r.memberId, memberName: r.memberName });
     });
     

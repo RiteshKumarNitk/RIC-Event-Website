@@ -4,6 +4,21 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/server-auth";
 
+// ─── Types ───
+export interface OccupiedSeatInfo {
+  seatId: string;
+  type: "booked" | "reserved" | "blocked";
+  memberName?: string;
+  memberId?: number;
+  attendeeName?: string;
+  reason?: string;
+}
+
+export interface EventSeatDetails {
+  occupied: OccupiedSeatInfo[];
+  blocked: { seatId: string; reason?: string }[];
+}
+
 export async function getBlockedSeats(eventId: string) {
   try {
     const seats = await prisma.blockedSeat.findMany({
@@ -72,6 +87,73 @@ export async function unblockAllSeats(eventId: string) {
   } catch (error) {
     console.error("Error unblocking all seats:", error);
     return { success: false, error: "Failed to unblock seats" };
+  }
+}
+
+export async function getEventSeatDetails(eventId: string): Promise<{
+  success: boolean;
+  details?: EventSeatDetails;
+  error?: string;
+}> {
+  try {
+    const [bookings, blockedSeats, reservations] = await Promise.all([
+      prisma.booking.findMany({
+        where: { eventId },
+        select: { attendees: true },
+      }),
+      prisma.blockedSeat.findMany({
+        where: { eventId },
+        select: { seatId: true, reason: true },
+      }),
+      prisma.seatReservation.findMany({
+        where: {
+          eventId,
+          status: { in: ["RESERVED", "CONFIRMED"] },
+        },
+        select: { seatId: true, memberId: true, memberName: true },
+      }),
+    ]);
+
+    const occupied: OccupiedSeatInfo[] = [];
+
+    // Add booked seats with attendee/member info
+    for (const booking of bookings) {
+      const attendees = booking.attendees as any[];
+      if (Array.isArray(attendees)) {
+        for (const a of attendees) {
+          if (a.seatId) {
+            occupied.push({
+              seatId: a.seatId,
+              type: "booked",
+              memberName: a.isMember ? a.attendeeName : undefined,
+              memberId: a.memberId ? Number(a.memberId) : undefined,
+              attendeeName: a.attendeeName,
+            });
+          }
+        }
+      }
+    }
+
+    // Add reserved seats
+    for (const r of reservations) {
+      occupied.push({
+        seatId: r.seatId,
+        type: "reserved",
+        memberName: r.memberName,
+        memberId: r.memberId,
+      });
+    }
+
+    return {
+      success: true,
+      details: {
+        occupied,
+        blocked: blockedSeats.map(s => ({ seatId: s.seatId, reason: s.reason || undefined })),
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching event seat details:", error);
+    return { success: false, error: "Failed to fetch seat details" };
   }
 }
 

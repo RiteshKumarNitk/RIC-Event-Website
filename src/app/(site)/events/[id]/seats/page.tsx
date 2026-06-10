@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { CheckoutDialog } from "@/components/checkout/checkout-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useMemberAuth } from "@/hooks/use-member-auth";
 import { verifyMemberForSeatSelection } from "@/app/actions/member-link-actions";
 import { getBookedSeats } from "@/app/actions/booking-actions";
 import Link from "next/link";
@@ -231,6 +232,7 @@ export default function SeatsPage() {
     const id = params.id as string;
     const { events, loading } = useEvents();
     const { user } = useAuth();
+    const { member: loggedInMember, loading: memberLoading } = useMemberAuth();
     const { toast } = useToast();
 
     const [step, setStep] = useState<BookingStep>("showtime");
@@ -278,6 +280,20 @@ export default function SeatsPage() {
         check();
     }, [user, id]);
 
+    // Also detect member logged in via separate member auth (JWT cookie)
+    useEffect(() => {
+        if (memberLoading) return;
+        if (loggedInMember && !memberStatus) {
+            setMemberStatus({
+                isMember: true,
+                alreadyUsed: false,
+                name: loggedInMember.name,
+                memberId: loggedInMember.memberId,
+                categoryAcronym: loggedInMember.categoryAcronym || "Member",
+            });
+        }
+    }, [loggedInMember, memberLoading, memberStatus]);
+
     // Fetch booked and reserved seats
     useEffect(() => {
         const fetch = async () => {
@@ -287,11 +303,20 @@ export default function SeatsPage() {
                 setBookedSeats(bookedRes.seatIds);
             }
             if (bookedRes.success && bookedRes.reservedSeats) {
-                setReservedSeats(Object.keys(bookedRes.reservedSeats));
+                const myMemberId = memberStatus?.memberId;
+                const reservedKeys = Object.keys(bookedRes.reservedSeats);
+                
+                // Exclude seats that are reserved by the currently logged-in member
+                // so they appear as available to them.
+                const othersReserved = myMemberId 
+                    ? reservedKeys.filter(seatId => bookedRes.reservedSeats[seatId].memberId !== myMemberId)
+                    : reservedKeys;
+                    
+                setReservedSeats(othersReserved);
             }
         };
         fetch();
-    }, [id, bookingsVersion]);
+    }, [id, bookingsVersion, memberStatus?.memberId]);
 
     useEffect(() => {
         if (event && !selectedShowtime && event.showtimes?.length > 0) {
@@ -334,6 +359,11 @@ export default function SeatsPage() {
             toast({ variant: "destructive", title: "No seats selected", description: "Please select at least one seat to proceed." });
             return;
         }
+        if (!user && !loggedInMember) {
+            toast({ variant: "destructive", title: "Login Required", description: "Please log in to continue with your booking." });
+            router.push(`/login?redirect=/events/${id}/seats`);
+            return;
+        }
         setCheckoutOpen(true);
     };
 
@@ -341,6 +371,13 @@ export default function SeatsPage() {
         seat: { id: seat.id, row: seat.row, col: seat.col, isBooked: seat.isBooked },
         section: { sectionName: section.sectionName, price: section.price, rows: [], className: "" },
     }));
+
+    // Derive member info to pass to checkout dialog (bypasses unreliable auto-verify)
+    const memberInfo = memberStatus?.isMember
+        ? { name: memberStatus.name || 'Member', memberId: memberStatus.memberId || 0, categoryAcronym: memberStatus.categoryAcronym || '' }
+        : (loggedInMember
+            ? { name: loggedInMember.name, memberId: loggedInMember.memberId, categoryAcronym: loggedInMember.categoryAcronym || '' }
+            : null);
 
     return (
         <div className="min-h-screen bg-white flex flex-col">
@@ -375,7 +412,7 @@ export default function SeatsPage() {
                                     asChild
                                     className="text-white hover:bg-white/10 text-xs gap-1"
                                 >
-                                    <Link href={`/member-login?redirect=/events/${id}/seats`}>
+                                    <Link href={`/login?mode=member&redirect=/events/${id}/seats`}>
                                         <LogIn className="h-3.5 w-3.5" /> Member Login
                                     </Link>
                                 </Button>
@@ -449,6 +486,7 @@ export default function SeatsPage() {
                     }}
                     event={event}
                     selectedSeats={convertedSeats}
+                    memberInfo={memberInfo}
                 />
             )}
 

@@ -95,7 +95,7 @@ export default function AdminMemberBookingsPage() {
       </div>
 
       {/* Event filter */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+      <div className="flex flex-wrap gap-2 mb-6">
         <Button
           variant={selectedEvent === "all" ? "default" : "outline"}
           size="sm"

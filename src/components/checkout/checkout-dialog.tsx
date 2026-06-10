@@ -19,7 +19,6 @@ import { cn } from '@/lib/utils';
 import { CheckCircle2, ArrowRight, ArrowLeft, CreditCard, User, FileText, BadgeCheck, XCircle, Smartphone, Wallet, Building, QrCode, Banknote, Crown } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
-import { useMemberAuth } from '@/hooks/use-member-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
@@ -27,6 +26,7 @@ import QRCode from "react-qr-code";
 import { authenticateMemberAction } from '@/app/actions/authenticate-member-action';
 import { autoVerifyMemberAction } from '@/app/actions/auto-verify-member-action';
 import { createBooking } from '@/app/actions/booking-actions';
+import { findOrCreateMemberUser } from '@/app/actions/member-user-actions';
 import { sendBookingConfirmation } from '@/app/actions/email-actions';
 import { calculateFees } from '@/app/actions/fee-actions';
 import { CanvaslyExportButton } from '@/components/CanvaslyExportButton';
@@ -82,9 +82,10 @@ interface CheckoutDialogProps {
   onOpenChange: (open: boolean) => void;
   event: Event;
   selectedSeats: { seat: Seat, section: SeatSection }[];
+  memberInfo?: { name: string; memberId: number; categoryAcronym: string } | null;
 }
 
-export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: CheckoutDialogProps) {
+export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats, memberInfo }: CheckoutDialogProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,7 +103,6 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
     total: number;
   } | null>(null);
   const { user } = useAuth();
-  const { member: loggedInMember } = useMemberAuth();
   const [autoMemberChecked, setAutoMemberChecked] = useState(false);
   const { toast } = useToast();
   const eventIsPaid = isPaidEvent(event);
@@ -145,44 +145,62 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
     }
   }, [selectedSeats, replace, isOpen, user]);
 
-  // Auto-detect logged-in member via JWT session and pre-fill the first attendee
+  // Auto-detect logged-in member — try server-side cookie check first (authoritative,
+  // handles alreadyUsed), then fall back to memberInfo prop from parent.
   useEffect(() => {
-    if (!isOpen || !loggedInMember || autoMemberChecked) return;
+    if (!isOpen || autoMemberChecked) return;
+
+    const currentAttendees = form.getValues('attendees');
+    if (currentAttendees.length === 0) return;
+
+    const applyMember = (name: string, mId: number) => {
+      const updated = [...currentAttendees];
+      updated[0] = {
+        ...updated[0],
+        attendeeName: name,
+        memberId: String(mId),
+        isMember: true,
+        memberIdVerified: true,
+        memberCheckbox: true,
+        price: 0,
+      };
+      replace(updated);
+      setAutoMemberChecked(true);
+      toast({
+        title: "Member Session Detected",
+        description: `${name} — free ticket applied automatically!`,
+      });
+    };
 
     const autoVerify = async () => {
-      const currentAttendees = form.getValues('attendees');
-      if (currentAttendees.length === 0) return;
-
       const result = await autoVerifyMemberAction(event.id);
 
       if (result.isValid && result.memberId && !result.alreadyUsed) {
-        const updated = [...currentAttendees];
-        updated[0] = {
-          ...updated[0],
-          attendeeName: result.memberName || loggedInMember.name,
-          memberId: String(result.memberId),
-          isMember: true,
-          memberIdVerified: true,
-          memberCheckbox: true,
-          price: 0, // Free for members
-        };
-        replace(updated);
-        toast({
-          title: "Member Session Detected",
-          description: `${result.memberName} — free ticket applied automatically!`,
-        });
-      } else if (result.isValid && result.alreadyUsed) {
+        applyMember(result.memberName || 'Member', result.memberId);
+        return;
+      }
+
+      if (result.isValid && result.alreadyUsed) {
         toast({
           variant: "destructive",
           title: "Already Booked",
           description: "You've already used your free member booking for this event.",
         });
+        setAutoMemberChecked(true);
+        return;
       }
+
+      // Server-side check failed (no cookie) — fall back to parent-provided memberInfo
+      if (memberInfo && !currentAttendees[0].isMember) {
+        applyMember(memberInfo.name, memberInfo.memberId);
+        return;
+      }
+
       setAutoMemberChecked(true);
     };
 
     autoVerify();
-  }, [isOpen, loggedInMember, autoMemberChecked, event.id, form, replace, toast]);
+  }, [isOpen, memberInfo, autoMemberChecked, event.id, form, replace, toast]);
 
   // Fetch fee breakdown when subtotalAmount changes
   useEffect(() => {
@@ -235,7 +253,7 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
         attendeeName: result.memberName || 'Member',
         price: 0,
       };
-      toast({ title: "Member Verified", description: `${result.memberName} gets a free ticket!`});
+      toast({ title: "Member Verified", description: `${result.memberName} — free ticket applied. Proceed to confirm booking.`});
     } else {
       updatedAttendee = { ...currentAttendee, isMember: false, memberIdVerified: true };
       toast({ variant: "destructive", title: "Verification Failed", description: result.message });
@@ -273,18 +291,33 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
     const values = form.getValues();
     const upiId = (values as any).upiTransactionId || "";
     return { ...base, method: paymentMethod, upiTransactionId: upiId, status: "completed" };
-  };
+  };    const onSubmit = async () => {
+    setIsSubmitting(true);
 
-  const onSubmit = async () => {
-    if (!user) {
+    let effectiveUserId = (user as any)?.uid || (user as any)?.id;
+
+    // If no regular auth user, try to resolve a userId from member JWT session
+    // or from the memberInfo passed from the parent
+    if (!effectiveUserId && memberInfo) {
+      const memberUserRes = await findOrCreateMemberUser();
+      if (memberUserRes.success && memberUserRes.userId) {
+        effectiveUserId = memberUserRes.userId;
+      } else {
+        toast({ variant: "destructive", title: "Booking Error", description: memberUserRes.error || "Could not prepare your booking." });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    if (!effectiveUserId) {
         toast({ variant: "destructive", title: "Not logged in", description: "You need to be logged in to book." });
+        setIsSubmitting(false);
         return;
     }
-    setIsSubmitting(true);
     const values = form.getValues();
     try {
         const res = await createBooking({
-            userId: (user as any).uid || (user as any).id,
+            userId: effectiveUserId,
             eventId: event.id,
             eventName: event.name,
             eventDate: event.date,
@@ -296,8 +329,8 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
             setBookingId(res.bookingId as string);
             setStep(steps.indexOf('Invoice') + 1);
             sendBookingConfirmation({
-              email: user?.email || "",
-              name: user?.name || user?.displayName || "Guest",
+              email: displayEmail,
+              name: displayName,
               bookingId: res.bookingId as string,
               eventName: event.name,
               eventDate: format(new Date(event.date), "EEEE, MMMM d, yyyy"),
@@ -311,11 +344,16 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
         }
     } catch (error) {
         console.error("Error saving booking: ", error);
-        toast({ variant: "destructive", title: "Booking Failed", description: "Could not save your booking." });
+        const message = error instanceof Error ? error.message : "Could not save your booking.";
+        toast({ variant: "destructive", title: "Booking Failed", description: message });
     } finally {
         setIsSubmitting(false);
     }
   };
+
+  // Helper: display name for the user (regular or member)
+  const displayName = user?.name || user?.displayName || memberInfo?.name || 'Guest';
+  const displayEmail = user?.email || '';
 
   const handleNext = async () => {
     if (step === 1) {
@@ -363,7 +401,7 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
         return <AttendeeDetailsStep form={form} fields={fields} onVerify={handleVerifyMemberId} memberPasswords={memberPasswords} setMemberPasswords={setMemberPasswords} verifyingMember={verifyingMember} />;
       case 3:
         if (!eventIsPaid || totalAmount === 0) {
-          return <InvoiceStep event={event} form={form} bookingId={bookingId} total={totalAmount} feeBreakdown={feeBreakdown} subtotal={subtotalAmount} />;
+          return <InvoiceStep event={event} form={form} bookingId={bookingId} total={totalAmount} feeBreakdown={feeBreakdown} subtotal={subtotalAmount} memberInfo={memberInfo} />;
         }
         return (
           <PaymentStep
@@ -376,7 +414,7 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
           />
         );
       case 4:
-        return <InvoiceStep event={event} form={form} bookingId={bookingId} total={totalAmount} feeBreakdown={feeBreakdown} subtotal={subtotalAmount} />;
+        return <InvoiceStep event={event} form={form} bookingId={bookingId} total={totalAmount} feeBreakdown={feeBreakdown} subtotal={subtotalAmount} memberInfo={memberInfo} />;
       default:
         return null;
     }
@@ -784,21 +822,24 @@ const PaymentStep = ({
   );
 };
 
-const InvoiceStep = ({ event, form, bookingId, total, feeBreakdown, subtotal }: {
+const InvoiceStep = ({ event, form, bookingId, total, feeBreakdown, subtotal, memberInfo }: {
   event: Event;
   form: any;
   bookingId: string | null;
   total: number;
   feeBreakdown: any;
   subtotal: number;
+  memberInfo?: { name: string; memberId: number; categoryAcronym: string } | null;
 }) => {
     const { user } = useAuth();
     const invoiceId = `invoice-card-${bookingId}`;
+    const bookedByName = user?.displayName || user?.name || (memberInfo ? `${memberInfo.name} (Member)` : 'N/A');
+    const bookedByEmail = user?.email || '';
 
     const qrValue = JSON.stringify({
         bookingId,
         eventName: event.name,
-        user: user?.email,
+        user: bookedByEmail || bookedByName,
         seats: form.getValues('attendees').map((a: any) => a.seatId).join(', '),
     });
 
@@ -811,7 +852,7 @@ const InvoiceStep = ({ event, form, bookingId, total, feeBreakdown, subtotal }: 
             </div>
             <h2 className="text-2xl font-bold mb-2">Booking Confirmed!</h2>
             <p className="text-muted-foreground">Your booking for {event.name} is complete.</p>
-            <p className="text-muted-foreground text-sm mt-2">A confirmation has been sent to {user?.email}.</p>
+            <p className="text-muted-foreground text-sm mt-2">A confirmation has been sent to {bookedByEmail || bookedByName}.</p>
             
             <div id={invoiceId} className="my-8 p-6 rounded-lg border bg-background text-left max-w-md mx-auto">
                 <h3 className="font-bold text-lg mb-4 text-center">E-Ticket / Invoice</h3>
@@ -825,7 +866,7 @@ const InvoiceStep = ({ event, form, bookingId, total, feeBreakdown, subtotal }: 
                     <div className="flex justify-between"><span className="font-semibold">Booking ID:</span> <span>{bookingId}</span></div>
                     <div className="flex justify-between"><span className="font-semibold">Event:</span> <span>{event.name}</span></div>
                     <div className="flex justify-between"><span className="font-semibold">Date:</span> <span>{format(new Date(event.date), 'PP')}</span></div>
-                    <div className="flex justify-between"><span className="font-semibold">Booked By:</span> <span>{user?.displayName || user?.email}</span></div>
+                    <div className="flex justify-between"><span className="font-semibold">Booked By:</span> <span>{bookedByName}</span></div>
                 </div>
                 <Separator className="my-4" />
                 <h4 className="font-semibold mb-2">Attendees & Seats</h4>

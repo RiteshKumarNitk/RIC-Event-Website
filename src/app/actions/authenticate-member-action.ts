@@ -13,9 +13,14 @@ export async function authenticateMemberAction(
   }
 
   try {
+    const numericMemberId = parseInt(memberId, 10);
+    if (isNaN(numericMemberId)) {
+      return { isValid: false, message: "Invalid Member ID format." };
+    }
+
     // 1. Look up the member by their numeric Member ID
     const member = await prisma.member.findFirst({
-      where: { memberId: parseInt(memberId, 10) },
+      where: { memberId: numericMemberId },
       select: {
         id: true,
         memberId: true,
