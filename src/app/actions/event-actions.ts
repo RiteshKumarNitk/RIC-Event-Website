@@ -55,15 +55,15 @@ export async function addEvent(data: Omit<Event, "id" | "createdAt" | "updatedAt
         artists: d.artists as any,
         ageLimit: d.ageLimit,
         duration: d.duration,
-        languages: d.languages,
+        languages: d.languages || [],
         ticketTypes: d.ticketTypes as any,
         seatingChart: d.seatingChart as any,
       }
     });
     return { success: true, event };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating event:", error);
-    return { success: false, error: "Failed to create event" };
+    return { success: false, error: error.message || "Failed to create event" };
   }
 }
 
