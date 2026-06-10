@@ -34,6 +34,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getBookingsChartData, type MonthlyBookingData } from "@/app/actions/chart-actions";
 import {
+  ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
@@ -485,64 +486,69 @@ export default function AdminDashboard() {
             </div>
           ) : (
             <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
-                  <XAxis
-                    dataKey={(d) => `${d.month} ${d.year}`}
-                    tick={{ fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                    className="text-muted-foreground"
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                    className="text-muted-foreground"
-                  />
-                  <ChartTooltip
-                    cursor={{ fill: "var(--color-muted)", opacity: 0.3 }}
-                    content={
-                      <ChartTooltipContent
-                        formatter={(value, name) => {
-                          const labels: Record<string, string> = {
-                            paidSeats: "Paid Tickets",
-                            freeSeats: "Free (Member)",
-                            revenue: "Revenue",
-                            bookings: "Total Bookings",
-                          };
-                          const numValue = Number(value);
-                          return (
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground">{labels[name as string] || name}:</span>
-                              <span className="font-bold">
-                                {name === "revenue" ? `₹${numValue.toLocaleString()}` : numValue}
-                              </span>
-                            </div>
-                          );
-                        }}
-                      />
-                    }
-                  />
-                  <Bar
-                    dataKey="paidSeats"
-                    name="paidSeats"
-                    fill="#2563eb"
-                    radius={[3, 3, 0, 0]}
-                    stackId="seats"
-                    maxBarSize={40}
-                  />
-                  <Bar
-                    dataKey="freeSeats"
-                    name="freeSeats"
-                    fill="#f59e0b"
-                    radius={[3, 3, 0, 0]}
-                    stackId="seats"
-                    maxBarSize={40}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              <ChartContainer config={{
+                paidSeats: { label: "Paid Tickets", color: "#2563eb" },
+                freeSeats: { label: "Free (Member)", color: "#f59e0b" },
+              }} className="h-full w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                    <XAxis
+                      dataKey={(d) => `${d.month} ${d.year}`}
+                      tick={{ fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      className="text-muted-foreground"
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      className="text-muted-foreground"
+                    />
+                    <ChartTooltip
+                      cursor={{ fill: "var(--color-muted)", opacity: 0.3 }}
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value, name) => {
+                            const labels: Record<string, string> = {
+                              paidSeats: "Paid Tickets",
+                              freeSeats: "Free (Member)",
+                              revenue: "Revenue",
+                              bookings: "Total Bookings",
+                            };
+                            const numValue = Number(value);
+                            return (
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground">{labels[name as string] || name}:</span>
+                                <span className="font-bold">
+                                  {name === "revenue" ? `₹${numValue.toLocaleString()}` : numValue}
+                                </span>
+                              </div>
+                            );
+                          }}
+                        />
+                      }
+                    />
+                    <Bar
+                      dataKey="paidSeats"
+                      name="paidSeats"
+                      fill="var(--color-paidSeats)"
+                      radius={[3, 3, 0, 0]}
+                      stackId="seats"
+                      maxBarSize={40}
+                    />
+                    <Bar
+                      dataKey="freeSeats"
+                      name="freeSeats"
+                      fill="var(--color-freeSeats)"
+                      radius={[3, 3, 0, 0]}
+                      stackId="seats"
+                      maxBarSize={40}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
             </div>
           )}
         </CardContent>

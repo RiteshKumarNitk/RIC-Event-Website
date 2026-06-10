@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { AuditoriumLayoutConfig, SeatCategory, SeatBlock } from "@/lib/seat-layouts";
-import { ZoomIn, ZoomOut, Maximize2, MousePointer2, Crown } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, MousePointer2, Crown, Info } from "lucide-react";
+import type { OccupiedSeatInfo } from "@/app/actions/seat-admin-actions";
 
 const CATEGORY_COLORS: Record<SeatCategory, { fill: string; stroke: string; text: string; bg: string; border: string }> = {
   Standard: { fill: "#ffffff", stroke: "#22c55e", text: "#22c55e", bg: "bg-green-500", border: "border-green-200" },
@@ -44,6 +45,12 @@ export function SeatingChart({
   memberLabel,
   bookedSeats = [],
   reservedSeats = [],
+  // Admin Mode Props
+  adminMode = false,
+  blockedSeats = [],
+  occupiedSeats = [],
+  selectedSeatIds = [],
+  onSeatClick,
 }: {
   event: Event;
   ticketCount: number;
@@ -54,22 +61,31 @@ export function SeatingChart({
   memberLabel?: string;
   bookedSeats?: string[];
   reservedSeats?: string[];
+  
+  // Admin Mode Props
+  adminMode?: boolean;
+  blockedSeats?: string[];
+  occupiedSeats?: OccupiedSeatInfo[];
+  selectedSeatIds?: string[];
+  onSeatClick?: (seatId: string) => void;
 }) {
   const [selectedSeats, setSelectedSeats] = useState<SeatState[]>([]);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [tooltipSeat, setTooltipSeat] = useState<string | null>(null);
   
   const svgRef = useRef<SVGSVGElement>(null);
   const { toast } = useToast();
 
   const visibleBlocks = useMemo(() => {
     return layout.blocks.filter((b) => {
+      if (adminMode) return true;
       if (b.membersOnly) return isMember;
       return true;
     });
-  }, [layout.blocks, isMember]);
+  }, [layout.blocks, isMember, adminMode]);
 
   const hasMembersBlocks = layout.blocks.some((b) => b.membersOnly);
 
@@ -270,11 +286,12 @@ export function SeatingChart({
                       const seatNum = c + 1 + rowOffset;
                       const seatX = centeringOffset + (c * (SEAT_W + SEAT_GAP));
                       const seatId = `${block.id}-${rowLabel}-${seatNum}`;
-                      const isSelected = selectedSeats.some(s => s.id === seatId);
+                      const _isReserved = adminMode ? !!occupiedSeats?.find(o => o.seatId === seatId && o.type === 'reserved') : reservedSeats.includes(seatId);
+                      const _isBooked = adminMode ? !!occupiedSeats?.find(o => o.seatId === seatId && o.type === 'booked') : bookedSeats.includes(seatId);
+                      const _isBlocked = adminMode ? blockedSeats?.includes(seatId) : false;
+                      const isSelected = adminMode && selectedSeatIds ? selectedSeatIds.includes(seatId) : selectedSeats.some(s => s.id === seatId);
                       const colors = CATEGORY_COLORS[block.category];
 
-                      const isReserved = reservedSeats.includes(seatId);
-                      const isBooked = bookedSeats.includes(seatId);
                       const seatState: SeatState = {
                         id: seatId,
                         blockId: block.id,
@@ -282,24 +299,35 @@ export function SeatingChart({
                         col: seatNum,
                         category: block.category,
                         price: block.membersOnly ? 0 : (event.ticketTypes.find(t => t.type === block.category)?.price || 0),
-                        isBooked: isBooked || isReserved,
-                        isReserved,
+                        isBooked: _isBooked || _isReserved,
+                        isReserved: _isReserved,
                         membersOnly: block.membersOnly,
                       };
 
-                      const seatFill = isBooked ? "#e2e8f0" : isReserved ? "#fde68a" : isSelected ? "#F84464" : colors.fill;
-                      const seatStroke = isBooked ? "#cbd5e1" : isReserved ? "#f59e0b" : isSelected ? "#dc2626" : colors.stroke;
+                      let seatFill = _isBooked ? "#e2e8f0" : _isReserved ? "#fde68a" : isSelected ? "#F84464" : colors.fill;
+                      let seatStroke = _isBooked ? "#cbd5e1" : _isReserved ? "#f59e0b" : isSelected ? "#dc2626" : colors.stroke;
+
+                      if (adminMode && _isBlocked) {
+                        seatFill = "#fee2e2";
+                        seatStroke = "#ef4444";
+                      }
+                      
+                      const occupant = adminMode ? occupiedSeats?.find(o => o.seatId === seatId) : null;
 
                       return (
                         <g
                           key={c}
-                          className={seatState.isBooked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
+                          className={adminMode ? "cursor-pointer" : (seatState.isBooked ? "cursor-not-allowed opacity-50" : "cursor-pointer")}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (!seatState.isBooked) {
+                            if (adminMode && onSeatClick) {
+                              onSeatClick(seatId);
+                            } else if (!seatState.isBooked) {
                               handleSelectSeat(seatState);
                             }
                           }}
+                          onMouseEnter={() => adminMode && occupant && setTooltipSeat(seatId)}
+                          onMouseLeave={() => adminMode && setTooltipSeat(null)}
                         >
                           <circle
                             cx={seatX + SEAT_R}
@@ -314,13 +342,31 @@ export function SeatingChart({
                             x={seatX + SEAT_R}
                             y={rowY + SEAT_R + 2.5}
                             textAnchor="middle"
-                            fill={seatState.isBooked ? "transparent" : isSelected ? "#fff" : colors.text}
+                            fill={(!adminMode && seatState.isBooked) ? "transparent" : isSelected ? "#fff" : colors.text}
                             fontSize="7"
                             fontWeight="600"
                             className="pointer-events-none select-none"
                           >
                             {seatNum}
                           </text>
+
+                          {/* Admin Toolkit: Occupied Tooltip */}
+                          {adminMode && tooltipSeat === seatId && occupant && (
+                            <g className="pointer-events-none">
+                              <rect x={seatX - 30} y={rowY - 35} width="80" height="30" fill="#fff" rx="4" stroke="#e2e8f0" />
+                              <text x={seatX + 10} y={rowY - 20} textAnchor="middle" fill="#0f172a" fontSize="8" fontWeight="bold">
+                                {occupant.type === 'booked' ? 'Booked' : 'Reserved'}
+                              </text>
+                              <text x={seatX + 10} y={rowY - 10} textAnchor="middle" fill="#64748b" fontSize="6">
+                                {occupant.memberName || occupant.attendeeName || 'Unknown'}
+                              </text>
+                            </g>
+                          )}
+                          
+                          {/* Admin Toolkit: Blocked Indicator */}
+                          {adminMode && _isBlocked && (
+                            <line x1={seatX} y1={rowY} x2={seatX + SEAT_W} y2={rowY + SEAT_H} stroke="#ef4444" strokeWidth="1.5" />
+                          )}
                         </g>
                       );
                     })}
