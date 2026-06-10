@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 interface MemberData {
@@ -27,7 +27,11 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  const fetchedRef = useRef(false);
+
   const fetchMember = useCallback(async () => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     try {
       const res = await fetch("/api/auth/member-me");
       if (res.ok) {
@@ -63,7 +67,9 @@ export function MemberAuthProvider({ children }: { children: ReactNode }) {
 
   const memberLogout = async () => {
     await fetch("/api/auth/member-logout", { method: "POST" });
+    fetchedRef.current = false;
     setMember(null);
+    setLoading(true);
     router.push("/member-login");
   };
 

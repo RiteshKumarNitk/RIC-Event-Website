@@ -23,9 +23,13 @@ export async function getMemberEventBookings(): Promise<{
       return { success: false, error: "Not authenticated." };
     }
 
-    // Find all bookings where this member's ID appears in attendees as a member
-    const allBookings = await prisma.booking.findMany({
-      where: { },
+    // Use DB-level filtering: only fetch bookings whose attendees JSON mentions this memberId
+    const candidateBookings = await prisma.booking.findMany({
+      where: {
+        attendees: {
+          string_contains: String(currentMember.memberId),
+        },
+      },
       select: {
         id: true,
         eventId: true,
@@ -37,8 +41,8 @@ export async function getMemberEventBookings(): Promise<{
       orderBy: { bookingDate: "desc" },
     });
 
-    // Filter bookings where this member has free seats
-    const memberBookings = allBookings
+    // Precise in-memory filter: verify isMember flag matches
+    const memberBookings = candidateBookings
       .filter((b) => {
         const atts = b.attendees as any[];
         return Array.isArray(atts) && atts.some(

@@ -50,16 +50,19 @@ export async function createBooking(data: any) {
     // Server-side validation: if any attendee has a member-only seat, verify user has linked member
     const hasMemberOnlySeat = attendees.some((a) => a.seatId && isMemberOnlySeat(a.seatId));
     if (hasMemberOnlySeat) {
-      const linkedMember = await prisma.member.findUnique({
-        where: { userId },
-        select: { id: true, memberId: true, name: true },
-      });
-      if (!linkedMember) {
-        return { success: false, error: "You must be a verified RIC member to book member-exclusive seats." };
-      }
-      // Auto-fill member info for each member-only seat attendee
-      for (const attendee of attendees) {
-        if (attendee.seatId && isMemberOnlySeat(attendee.seatId)) {
+      // Check for member-only seat attendees that are NOT already verified via checkout flow
+      const unverifiedMemberOnlySeats = attendees.filter(
+        (a) => a.seatId && isMemberOnlySeat(a.seatId) && !(a.isMember && a.memberIdVerified)
+      );
+      if (unverifiedMemberOnlySeats.length > 0) {
+        const linkedMember = await prisma.member.findUnique({
+          where: { userId },
+          select: { id: true, memberId: true, name: true },
+        });
+        if (!linkedMember) {
+          return { success: false, error: "You must be a verified RIC member to book member-exclusive seats." };
+        }
+        for (const attendee of unverifiedMemberOnlySeats) {
           attendee.isMember = true;
           attendee.memberIdVerified = true;
           attendee.memberId = String(linkedMember.memberId);

@@ -8,6 +8,7 @@ import { getMembers as serverGetMembers, addMember as serverAddMember, updateMem
 interface MembersContextType {
   members: Member[];
   loading: boolean;
+  refreshMembers: () => Promise<void>;
   addMember: (member: Omit<Member, 'id'>) => Promise<void>;
   updateMember: (id: string, member: Partial<Omit<Member, 'id'>>) => Promise<void>;
   deleteMember: (id: string) => Promise<void>;
@@ -24,8 +25,8 @@ export const MembersProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchedRef = useRef(false);
 
-  const fetchMembers = useCallback(async () => {
-    if (fetchedRef.current) return;
+  const fetchMembers = useCallback(async (force = false) => {
+    if (!force && fetchedRef.current) return;
     setLoading(true);
     try {
       const data = await serverGetMembers();
@@ -48,11 +49,10 @@ export const MembersProvider = ({ children }: { children: ReactNode }) => {
     fetchMembers();
   }, [fetchMembers]);
 
-  useEffect(() => {
-    return () => {
-      fetchedRef.current = false;
-    };
-  }, []);
+  const refreshMembers = useCallback(async () => {
+    fetchedRef.current = false;
+    await fetchMembers(true);
+  }, [fetchMembers]);
 
   const addMember = async (member: Omit<Member, 'id'>) => {
     try {
@@ -64,7 +64,7 @@ export const MembersProvider = ({ children }: { children: ReactNode }) => {
       
       if (res.success) {
         toast({ title: "Success", description: "Member created successfully." });
-        await fetchMembers();
+        await refreshMembers();
       } else {
         throw new Error(res.error || "Failed");
       }
@@ -83,7 +83,7 @@ export const MembersProvider = ({ children }: { children: ReactNode }) => {
       const res = await serverUpdateMember(id, dataToUpdate);
       if (res.success) {
         toast({ title: "Success", description: "Member updated successfully." });
-        await fetchMembers();
+        await refreshMembers();
       } else {
         throw new Error(res.error || "Failed");
       }
@@ -98,7 +98,7 @@ export const MembersProvider = ({ children }: { children: ReactNode }) => {
       const res = await serverDeleteMember(id);
       if (res.success) {
         toast({ title: "Success", description: "Member deleted successfully." });
-        await fetchMembers();
+        await refreshMembers();
       } else {
         throw new Error(res.error || "Failed");
       }
@@ -129,8 +129,7 @@ export const MembersProvider = ({ children }: { children: ReactNode }) => {
       const res = await serverDeleteAllMembers();
       if (res.success) {
         toast({ title: 'Members Cleared', description: 'All members have been deleted.' });
-        fetchedRef.current = false;
-        await fetchMembers();
+        await refreshMembers();
       } else {
         toast({ variant: 'destructive', title: 'Failed', description: res.error || 'Could not delete all members.' });
       }
@@ -140,7 +139,7 @@ export const MembersProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <MembersContext.Provider value={{ members, loading, addMember, updateMember, deleteMember, seedDatabase, deleteAllMembers }}>
+    <MembersContext.Provider value={{ members, loading, refreshMembers, addMember, updateMember, deleteMember, seedDatabase, deleteAllMembers }}>
       {children}
     </MembersContext.Provider>
   );

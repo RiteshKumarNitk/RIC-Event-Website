@@ -149,6 +149,9 @@ model Booking {
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   checkIns    CheckIn[]
+
+  @@index([eventId])
+  @@index([bookingDate])
 }
 
 // Fee configuration (singleton — only one active row)

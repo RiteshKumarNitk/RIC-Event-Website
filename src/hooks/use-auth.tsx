@@ -6,7 +6,10 @@ import { useRouter } from 'next/navigation';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   return (
-    <SessionProvider>
+    <SessionProvider
+      refetchInterval={0}           // Disable automatic polling
+      refetchOnWindowFocus={false}  // Don't refetch when tab gets focus
+    >
       <AuthContextProvider>{children}</AuthContextProvider>
     </SessionProvider>
   );

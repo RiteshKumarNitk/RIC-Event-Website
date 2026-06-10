@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -84,6 +85,7 @@ interface CheckoutDialogProps {
 }
 
 export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: CheckoutDialogProps) {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
@@ -231,6 +233,7 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
         isMember: true,
         memberIdVerified: true,
         attendeeName: result.memberName || 'Member',
+        price: 0,
       };
       toast({ title: "Member Verified", description: `${result.memberName} gets a free ticket!`});
     } else {
@@ -291,7 +294,7 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
         });
         if (res.success) {
             setBookingId(res.bookingId as string);
-            setStep(steps.length);
+            setStep(steps.indexOf('Invoice') + 1);
             sendBookingConfirmation({
               email: user?.email || "",
               name: user?.name || user?.displayName || "Guest",
@@ -340,12 +343,16 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
   const resetAndClose = () => {
     form.reset();
     setStep(1);
+    const currentBookingId = bookingId;
     setBookingId(null);
     setPaymentMethod(null);
     setMemberPasswords({});
     setVerifyingMember({});
     setAutoMemberChecked(false);
     onOpenChange(false);
+    if (currentBookingId) {
+      router.push(`/confirmation/${currentBookingId}`);
+    }
   }
 
   const renderStepContent = () => {
@@ -355,6 +362,9 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats }: C
       case 2:
         return <AttendeeDetailsStep form={form} fields={fields} onVerify={handleVerifyMemberId} memberPasswords={memberPasswords} setMemberPasswords={setMemberPasswords} verifyingMember={verifyingMember} />;
       case 3:
+        if (!eventIsPaid || totalAmount === 0) {
+          return <InvoiceStep event={event} form={form} bookingId={bookingId} total={totalAmount} feeBreakdown={feeBreakdown} subtotal={subtotalAmount} />;
+        }
         return (
           <PaymentStep
             total={totalAmount}

@@ -236,8 +236,7 @@ export default function MemberDashboardPage() {
                     <p className="font-medium">{member.categoryType} ({member.categoryAcronym})</p>
                   </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
                   <Mail className="h-5 w-5 text-muted-foreground shrink-0" />
                   <div>

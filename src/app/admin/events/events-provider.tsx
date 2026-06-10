@@ -8,6 +8,7 @@ import { getEvents as serverGetEvents, addEvent as serverAddEvent, updateEvent a
 interface EventsContextType {
   events: Event[];
   loading: boolean;
+  refreshEvents: () => Promise<void>;
   addEvent: (event: Omit<Event, 'id'>) => Promise<void>;
   updateEvent: (id: string, event: Partial<Event>) => Promise<void>;
   deleteEvent: (id: string) => Promise<void>;
@@ -24,8 +25,8 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchedRef = useRef(false);
 
-  const fetchEvents = useCallback(async () => {
-    if (fetchedRef.current) return;
+  const fetchEvents = useCallback(async (force = false) => {
+    if (!force && fetchedRef.current) return;
     setLoading(true);
     try {
       const data = await serverGetEvents();
@@ -47,11 +48,10 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
     fetchEvents();
   }, [fetchEvents]);
 
-  useEffect(() => {
-    return () => {
-      fetchedRef.current = false;
-    };
-  }, []);
+  const refreshEvents = useCallback(async () => {
+    fetchedRef.current = false;
+    await fetchEvents(true);
+  }, [fetchEvents]);
 
   const addEvent = async (event: Omit<Event, 'id'>) => {
     try {
@@ -62,7 +62,7 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
       
       if (res.success) {
         toast({ title: "Success", description: "Event created successfully." });
-        await fetchEvents();
+        await refreshEvents();
       } else {
         throw new Error(res.error || "Failed");
       }
@@ -82,7 +82,7 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
       
       if (res.success) {
         toast({ title: "Success", description: "Event updated successfully." });
-        await fetchEvents();
+        await refreshEvents();
       } else {
         throw new Error(res.error || "Failed");
       }
@@ -97,7 +97,7 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
       const res = await serverDeleteEvent(id);
       if (res.success) {
         toast({ title: "Success", description: "Event deleted successfully." });
-        await fetchEvents();
+        await refreshEvents();
       } else {
         throw new Error(res.error || "Failed");
       }
@@ -128,8 +128,7 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
       const res = await serverDeleteAllEvents();
       if (res.success) {
         toast({ title: 'Events Cleared', description: 'All events and associated bookings have been deleted.' });
-        fetchedRef.current = false;
-        await fetchEvents();
+        await refreshEvents();
       } else {
         toast({ variant: 'destructive', title: 'Failed', description: res.error || 'Could not delete all events.' });
       }
@@ -139,7 +138,7 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <EventsContext.Provider value={{ events, loading, addEvent, updateEvent, deleteEvent, seedDatabase, deleteAllEvents }}>
+    <EventsContext.Provider value={{ events, loading, refreshEvents, addEvent, updateEvent, deleteEvent, seedDatabase, deleteAllEvents }}>
       {children}
     </EventsContext.Provider>
   );
