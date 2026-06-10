@@ -183,7 +183,10 @@ export default function AdminLayout({
             </SidebarFooter>
           </Sidebar>
           <SidebarInset>
-            <div className="p-4 md:p-8">
+            <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
+              <SidebarTrigger className="-ml-1" />
+            </header>
+            <div className="p-4 md:p-8 flex-1 overflow-y-auto">
               <ErrorBoundary fallbackTitle="Members Unavailable" fallbackDescription="Could not load members. Please try again later.">
                 <MembersProvider>
                   {children}

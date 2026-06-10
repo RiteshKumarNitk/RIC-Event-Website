@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { MoreHorizontal, ChevronLeft, ChevronRight, Search, Plus, Pencil, Trash2, FileSpreadsheet } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useMembers } from "./members-provider";
 import { useRouter } from "next/navigation";
@@ -23,8 +24,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-const ITEMS_PER_PAGE = 15;
 
 function SkeletonRow() {
   return (
@@ -43,6 +42,7 @@ export default function AdminMembersPage() {
   const { members, deleteMember, loading } = useMembers();
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -59,10 +59,10 @@ export default function AdminMembersPage() {
     return counts;
   }, [members]);
 
-  const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
   const paginatedMembers = filteredMembers.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   const handleEdit = (id: string) => router.push(`/admin/members/edit/${id}`);
@@ -187,12 +187,31 @@ export default function AdminMembersPage() {
             </TableBody>
           </Table>
 
-          {!loading && totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
-                Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
-                {Math.min(currentPage * ITEMS_PER_PAGE, filteredMembers.length)} of {filteredMembers.length}
-              </p>
+          {!loading && (
+            <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t gap-4">
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <p>
+                  Showing {filteredMembers.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to{" "}
+                  {Math.min(currentPage * itemsPerPage, filteredMembers.length)} of {filteredMembers.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="hidden sm:inline">Rows per page:</span>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue placeholder="10" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="flex gap-1">
                 <Button
                   variant="outline"
@@ -224,7 +243,7 @@ export default function AdminMembersPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || totalPages === 0}
                 >
                   Next<ChevronRight className="h-4 w-4 ml-1" />
                 </Button>

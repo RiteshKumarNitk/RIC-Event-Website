@@ -12,10 +12,43 @@ export interface MemberBookingRecord {
   bookingDate: Date;
 }
 
-export async function getAdminMemberBookings(eventId?: string) {
+export interface FilterOptions {
+  eventId?: string;
+  category?: string;
+  timeFilter?: "all" | "upcoming" | "past";
+}
+
+function buildWhereClause(options: FilterOptions) {
+  const where: any = {};
+  
+  if (options.eventId && options.eventId !== "all") {
+    where.eventId = options.eventId;
+  }
+  
+  const eventWhere: any = {};
+  if (options.category && options.category !== "all") {
+    eventWhere.category = options.category;
+  }
+  
+  if (options.timeFilter === "upcoming") {
+    eventWhere.date = { gte: new Date() };
+  } else if (options.timeFilter === "past") {
+    eventWhere.date = { lt: new Date() };
+  }
+  
+  if (Object.keys(eventWhere).length > 0) {
+    where.event = eventWhere;
+  }
+  
+  return where;
+}
+
+export async function getAdminMemberBookings(options: FilterOptions = {}) {
   try {
+    const where = buildWhereClause(options);
+
     const allBookings = await prisma.booking.findMany({
-      where: eventId ? { eventId } : undefined,
+      where,
       select: {
         id: true,
         eventId: true,
@@ -62,9 +95,12 @@ export async function getAdminMemberBookings(eventId?: string) {
   }
 }
 
-export async function getMemberBookingStats() {
+export async function getMemberBookingStats(options: FilterOptions = {}) {
   try {
+    const where = buildWhereClause(options);
+
     const allBookings = await prisma.booking.findMany({
+      where,
       select: {
         id: true,
         attendees: true,

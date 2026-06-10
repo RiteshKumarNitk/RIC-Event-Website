@@ -80,3 +80,25 @@ export async function getTransactionStats() {
     return { success: false, error: "Failed to fetch stats." };
   }
 }
+
+export async function markTransactionPaid(transactionId: string) {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: transactionId },
+    });
+    if (!booking) return { success: false, error: "Booking not found." };
+    
+    const paymentInfo = (booking.paymentInfo as any) || {};
+    paymentInfo.status = "completed";
+    
+    await prisma.booking.update({
+      where: { id: transactionId },
+      data: { paymentInfo },
+    });
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error marking transaction as paid:", error);
+    return { success: false, error: "Failed to mark as paid." };
+  }
+}

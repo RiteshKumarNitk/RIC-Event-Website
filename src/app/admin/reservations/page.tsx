@@ -12,6 +12,7 @@ import { useEvents } from "../events/events-provider";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +23,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-const ITEMS_PER_PAGE = 15;
 
 type Reservation = {
   id: string;
@@ -54,6 +53,7 @@ export default function AdminReservationsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [eventFilter, setEventFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [actionTarget, setActionTarget] = useState<{ id: string; action: "confirm" | "cancel" } | null>(null);
 
   useEffect(() => {
@@ -90,8 +90,8 @@ export default function AdminReservationsPage() {
     return result;
   }, [reservations, search, statusFilter, eventFilter]);
 
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { RESERVED: 0, CONFIRMED: 0, CANCELLED: 0 };
@@ -250,11 +250,31 @@ export default function AdminReservationsPage() {
             </Table>
           )}
 
-          {!loading && totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
-                Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length}
-              </p>
+          {!loading && (
+            <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t gap-4">
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <p>
+                  Showing {filtered.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to{" "}
+                  {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="hidden sm:inline">Rows per page:</span>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(val) => { setItemsPerPage(Number(val)); setCurrentPage(1); }}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue placeholder="10" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="flex gap-1">
                 <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
                   <ChevronLeft className="h-4 w-4 mr-1" />Prev
@@ -271,7 +291,7 @@ export default function AdminReservationsPage() {
                     </Button>
                   );
                 })}
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0}>
                   Next<ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>

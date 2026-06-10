@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEvents } from "../events/events-provider";
-import { getAllTransactions, getTransactionStats } from "@/app/actions/transaction-actions";
+import { getAllTransactions, getTransactionStats, markTransactionPaid } from "@/app/actions/transaction-actions";
+import { useToast } from "@/hooks/use-toast";
 import {
   Smartphone, Wallet, CreditCard, Banknote, Search, Loader2,
   Download, Filter, ArrowUpDown, IndianRupee
@@ -64,22 +65,25 @@ export default function AdminTransactionsPage() {
   const [methodFilter, setMethodFilter] = useState("all");
   const [eventFilter, setEventFilter] = useState("all");
   const [sortBy, setSortBy] = useState<"date" | "amount">("date");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const fetchTransactions = async () => {
+    setLoading(true);
+    const [txRes, statsRes] = await Promise.all([
+      getAllTransactions(),
+      getTransactionStats(),
+    ]);
+    if (txRes.success) {
+      setTransactions((txRes.transactions as any) || []);
+      setFiltered((txRes.transactions as any) || []);
+    }
+    if (statsRes.success) setStats(statsRes.stats);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetch = async () => {
-      setLoading(true);
-      const [txRes, statsRes] = await Promise.all([
-        getAllTransactions(),
-        getTransactionStats(),
-      ]);
-      if (txRes.success) {
-        setTransactions((txRes.transactions as any) || []);
-        setFiltered((txRes.transactions as any) || []);
-      }
-      if (statsRes.success) setStats(statsRes.stats);
-      setLoading(false);
-    };
-    fetch();
+    fetchTransactions();
   }, []);
 
   useEffect(() => {
@@ -107,6 +111,18 @@ export default function AdminTransactionsPage() {
     });
     setFiltered(result);
   }, [search, methodFilter, eventFilter, sortBy, transactions]);
+
+  const handleMarkPaid = async (id: string) => {
+    setActionLoading(id);
+    const res = await markTransactionPaid(id);
+    if (res.success) {
+      toast({ title: "Success", description: "Transaction marked as paid!" });
+      await fetchTransactions();
+    } else {
+      toast({ variant: "destructive", title: "Error", description: res.error || "Failed to mark as paid." });
+    }
+    setActionLoading(null);
+  };
 
   const totalRevenue = filtered.reduce((acc, t) => acc + t.total, 0);
 
@@ -232,6 +248,7 @@ export default function AdminTransactionsPage() {
                     <th className="text-left p-3 font-medium">UPI Ref</th>
                     <th className="text-left p-3 font-medium">Status</th>
                     <th className="text-right p-3 font-medium">Amount</th>
+                    <th className="text-right p-3 font-medium">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -271,6 +288,19 @@ export default function AdminTransactionsPage() {
                           </Badge>
                         </td>
                         <td className="p-3 text-right font-bold">₹{tx.total.toFixed(2)}</td>
+                        <td className="p-3 text-right">
+                          {tx.status === "pending" && tx.method === "cash" && (
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs bg-green-600 hover:bg-green-700"
+                              onClick={() => handleMarkPaid(tx.id)}
+                              disabled={actionLoading === tx.id}
+                            >
+                              {actionLoading === tx.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                              Collect
+                            </Button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}

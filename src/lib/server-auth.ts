@@ -1,59 +1,26 @@
-import { cookies } from "next/headers";
-import { jwtVerify } from "jose";
-/**
- * Get the JWT secret from environment variables.
- * Throws if not configured.
- */
-function getJwtSecret(): Uint8Array {
-  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
-  if (!secret) {
-    throw new Error(
-      "JWT secret not configured. Set NEXTAUTH_SECRET or AUTH_SECRET environment variable."
-    );
-  }
-  return new TextEncoder().encode(secret);
-}
 
-/**
- * Get the raw session token string from cookies.
- * Works in both server actions and route handlers.
- */
-async function getSessionTokenFromCookies(): Promise<string | null> {
-  const cookieStore = await cookies();
-  // NextAuth v5 uses "authjs.session-token", v4 uses "next-auth.session-token"
-  const token =
-    cookieStore.get("authjs.session-token")?.value ||
-    cookieStore.get("__Secure-authjs.session-token")?.value ||
-    cookieStore.get("next-auth.session-token")?.value ||
-    cookieStore.get("__Secure-next-auth.session-token")?.value;
-  return token || null;
-}
 
-/**
- * Verify a JWT token and return the payload.
- */
-async function verifyToken(token: string) {
-  const { payload } = await jwtVerify(token, getJwtSecret());
-  return payload;
-}
+import { auth } from "@/auth";
 
 /**
  * Require admin role. Works in server actions (no request needed).
- * Reads the session token from cookies and verifies it.
+ * Uses NextAuth v5's official auth() function.
  */
 export async function requireAdminSession() {
-  const token = await getSessionTokenFromCookies();
-  if (!token) {
-    throw new Error("Unauthorized: you must be logged in.");
-  }
-
   try {
-    const payload = await verifyToken(token);
-    if (payload.role !== "ADMIN") {
+    const session = await auth();
+    
+    if (!session || !session.user) {
+      throw new Error("Unauthorized: you must be logged in.");
+    }
+
+    if ((session.user as any).role !== "ADMIN") {
       throw new Error("Forbidden: admin access required.");
     }
-    return payload;
+    
+    return session.user;
   } catch (error) {
+    console.error("[requireAdminSession] Authentication error:", error);
     if (error instanceof Error && error.message.includes("Forbidden")) {
       throw error;
     }

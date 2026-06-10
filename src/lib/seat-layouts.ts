@@ -87,7 +87,7 @@ export const RIC_AUDITORIUM: AuditoriumLayoutConfig = {
   name: "RIC Auditorium",
   blocks: [
     // ── MEMBERS EXCLUSIVE (Front rows, free for members) ──
-    { id: "MEM", category: "Members", rows: 3, cols: 16, colsPerRow: [14, 16, 16], colOffsetsPerRow: [0, 0, 0], position: { top: 608, left: 380 }, rotation: 0, rowLabelOffset: 0, colOffset: 0, align: "center", membersOnly: true },
+    // { id: "MEM", category: "Members", rows: 3, cols: 16, colsPerRow: [14, 16, 16], colOffsetsPerRow: [0, 0, 0], position: { top: 608, left: 380 }, rotation: 0, rowLabelOffset: 0, colOffset: 0, align: "center", membersOnly: true },
 
     // ── FRONT TIER (A-E) ──
     { id: "FLW", category: "Standard", rows: 5, cols: 15, colsPerRow: [14, 15, 15, 15, 15], colOffsetsPerRow: [0, 0, 0, 0, 0], position: { top: 550, left: 131 }, rotation: -16, rowLabelOffset: 0, colOffset: 0, hideLeftLabel: true, align: "right" },
