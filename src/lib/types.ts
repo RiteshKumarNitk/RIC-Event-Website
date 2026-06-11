@@ -85,9 +85,8 @@ export type Booking = {
   bookingDate: string;
 };
 
-export type Member = {
+export interface Member {
     id: string;
-    applicationId: number;
     memberId: number;
     categoryType: string;
     categoryAcronym: string;

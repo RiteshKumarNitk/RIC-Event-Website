@@ -8,7 +8,6 @@ export async function GET() {
     "name",
     "phone",
     "email",
-    "applicationId",
     "categoryType",
     "categoryAcronym",
     "doa",

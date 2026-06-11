@@ -25,7 +25,6 @@ const memberSchema = z.object({
   dob: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
   doa: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
   emergencyContact: z.string().min(10, "Emergency contact must be at least 10 digits."),
-  applicationId: z.coerce.number().int().optional(),
   categoryType: z.string().optional(),
   categoryAcronym: z.string().optional(),
 });
@@ -59,12 +58,16 @@ export default function EditMemberPage() {
 
     async function onSubmit(values: z.infer<typeof memberSchema>) {
         if (!member) return;
-        await updateMember(member.id, values as any);
-        router.push("/admin/members");
+        try {
+            await updateMember(member.id, values as any);
+            router.push("/admin/members");
+        } catch (error) {
+            console.error("Form submission failed:", error);
+        }
     }
 
     const handleResetPassword = async () => {
-        if (!member || resetPassword.length < 4) return;
+        if (!member || resetPassword.length < 8) return;
         setResetting(true);
         try {
             const res = await fetch("/api/auth/member-reset-password", {
@@ -175,12 +178,12 @@ export default function EditMemberPage() {
                                 <div className="flex gap-2">
                                     <Input
                                         type="text"
-                                        placeholder="Enter new password (min 4 chars)"
+                                        placeholder="Enter new password (min 8 chars)"
                                         value={resetPassword}
                                         onChange={(e) => setResetPassword(e.target.value)}
                                         className="flex-1"
                                     />
-                                    <Button onClick={handleResetPassword} disabled={resetting || resetPassword.length < 4}>
+                                    <Button onClick={handleResetPassword} disabled={resetting || resetPassword.length < 8}>
                                         {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                                         {resetting ? "Saving..." : "Save"}
                                     </Button>

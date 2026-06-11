@@ -191,7 +191,6 @@ async function main() {
   const members = await Promise.all([
     prisma.member.create({
       data: {
-        applicationId: 1001,
         memberId: 1,
         categoryType: 'Individual',
         categoryAcronym: 'IND',
@@ -206,7 +205,6 @@ async function main() {
     }),
     prisma.member.create({
       data: {
-        applicationId: 1002,
         memberId: 2,
         categoryType: 'Corporate',
         categoryAcronym: 'CORP',
@@ -221,7 +219,6 @@ async function main() {
     }),
     prisma.member.create({
       data: {
-        applicationId: 1003,
         memberId: 3,
         categoryType: 'Student',
         categoryAcronym: 'STU',
@@ -236,7 +233,6 @@ async function main() {
     }),
     prisma.member.create({
       data: {
-        applicationId: 1004,
         memberId: 4,
         categoryType: 'Senior Citizen',
         categoryAcronym: 'SEN',
@@ -251,7 +247,6 @@ async function main() {
     }),
     prisma.member.create({
       data: {
-        applicationId: 1005,
         memberId: 5,
         categoryType: 'Individual',
         categoryAcronym: 'IND',
@@ -266,7 +261,6 @@ async function main() {
     }),
     prisma.member.create({
       data: {
-        applicationId: 1006,
         memberId: 6,
         categoryType: 'Corporate',
         categoryAcronym: 'CORP',
@@ -281,7 +275,6 @@ async function main() {
     }),
     prisma.member.create({
       data: {
-        applicationId: 1007,
         memberId: 7,
         categoryType: 'Student',
         categoryAcronym: 'STU',

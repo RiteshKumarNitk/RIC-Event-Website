@@ -68,7 +68,6 @@ export async function importMembersFromExcel(formData: FormData) {
         await prisma.member.create({
           data: {
             memberId,
-            applicationId: parseInt(cleanStr(row.applicationId), 10) || memberId,
             name,
             phone,
             email: email || `member${memberId}@ric.in`,

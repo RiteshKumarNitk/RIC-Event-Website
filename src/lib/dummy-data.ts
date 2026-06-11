@@ -96,7 +96,6 @@ export const sampleEvents: Omit<Event, 'id'>[] = [
 
 export const sampleMembers = [
   {
-    applicationId: 1001,
     memberId: 1,
     categoryType: "Individual",
     categoryAcronym: "IND",
@@ -109,7 +108,6 @@ export const sampleMembers = [
     emergencyContact: "+91 9876543211",
   },
   {
-    applicationId: 1002,
     memberId: 2,
     categoryType: "Corporate",
     categoryAcronym: "CORP",
@@ -122,7 +120,6 @@ export const sampleMembers = [
     emergencyContact: "+91 8765432108",
   },
   {
-    applicationId: 1003,
     memberId: 3,
     categoryType: "Student",
     categoryAcronym: "STU",
@@ -135,7 +132,6 @@ export const sampleMembers = [
     emergencyContact: "+91 7654321097",
   },
   {
-    applicationId: 1004,
     memberId: 4,
     categoryType: "Senior Citizen",
     categoryAcronym: "SEN",
@@ -148,7 +144,6 @@ export const sampleMembers = [
     emergencyContact: "+91 6543210986",
   },
   {
-    applicationId: 1005,
     memberId: 5,
     categoryType: "Individual",
     categoryAcronym: "IND",

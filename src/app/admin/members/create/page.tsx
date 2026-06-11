@@ -16,18 +16,17 @@ import { format } from 'date-fns';
 import { useState } from "react";
 
 const memberSchema = z.object({
-  memberId: z.coerce.number().int("Member ID must be an integer."),
-  name: z.string().min(2, "Name must be at least 2 characters."),
-  email: z.string().email("Invalid email address."),
-  phone: z.string().min(10, "Phone number must be at least 10 digits."),
-  address: z.string().min(5, "Address is required."),
-  dob: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
-  doa: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
-  emergencyContact: z.string().min(10, "Emergency contact must be at least 10 digits."),
-  applicationId: z.coerce.number().int().optional(),
-  categoryType: z.string().optional(),
-  categoryAcronym: z.string().optional(),
-  password: z.string().min(4, "Password must be at least 4 characters."),
+    memberId: z.coerce.number().int("Member ID must be an integer."),
+    name: z.string().min(2, "Name must be at least 2 characters."),
+    email: z.string().email("Invalid email address."),
+    phone: z.string().min(10, "Phone number must be at least 10 digits."),
+    address: z.string().min(5, "Address is required."),
+    dob: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
+    doa: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
+    emergencyContact: z.string().min(10, "Emergency contact must be at least 10 digits."),
+    categoryType: z.string().optional(),
+    categoryAcronym: z.string().optional(),
+    password: z.string().min(8, "Password must be at least 8 characters."),
 });
 
 export default function CreateMemberPage() {
@@ -38,6 +37,7 @@ export default function CreateMemberPage() {
     const form = useForm<z.infer<typeof memberSchema>>({
         resolver: zodResolver(memberSchema),
         defaultValues: {
+            memberId: 0,
             name: "",
             email: "",
             phone: "",
@@ -52,13 +52,16 @@ export default function CreateMemberPage() {
     });
 
     async function onSubmit(values: z.infer<typeof memberSchema>) {
-        await addMember({
-            ...values,
-            applicationId: values.applicationId ?? 0,
-            categoryType: values.categoryType ?? 'IND',
-            categoryAcronym: values.categoryAcronym ?? 'IND',
-        } as any);
-        router.push("/admin/members");
+        try {
+            await addMember({
+                ...values,
+                categoryType: values.categoryType ?? 'IND',
+                categoryAcronym: values.categoryAcronym ?? 'IND',
+            } as any);
+            router.push("/admin/members");
+        } catch (error) {
+            console.error("Form submission failed:", error);
+        }
     }
 
     return (

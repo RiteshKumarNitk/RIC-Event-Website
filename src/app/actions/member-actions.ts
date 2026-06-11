@@ -7,7 +7,6 @@ import { z } from "zod";
 import { requireAdminSession } from "@/lib/server-auth";
 
 const createMemberSchema = z.object({
-  applicationId: z.number().min(1, "Application ID is required"),
   memberId: z.number().min(1, "Member ID is required"),
   categoryType: z.string().min(1, "Category type is required"),
   categoryAcronym: z.string().min(1, "Category acronym is required"),
@@ -46,9 +45,9 @@ export async function addMember(data: Omit<Member, "id" | "createdAt" | "updated
     }
     const member = await prisma.member.create({ data: createData });
     return { success: true, member };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating member:", error);
-    return { success: false, error: "Failed to create member" };
+    return { success: false, error: error.message || "Failed to create member" };
   }
 }
 
@@ -93,7 +92,6 @@ export async function seedMembers(sampleMembers: any[]) {
 
     for (const member of sampleMembers) {
       const createData: any = {
-        applicationId: member.applicationId,
         memberId: member.memberId,
         categoryType: member.categoryType,
         categoryAcronym: member.categoryAcronym,

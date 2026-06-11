@@ -68,9 +68,10 @@ export const MembersProvider = ({ children }: { children: ReactNode }) => {
       } else {
         throw new Error(res.error || "Failed");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding member: ", error);
-      toast({ variant: 'destructive', title: "Error", description: "Could not create member." });
+      toast({ variant: 'destructive', title: "Error", description: error.message || "Could not create member." });
+      throw error;
     }
   };
 
@@ -87,9 +88,10 @@ export const MembersProvider = ({ children }: { children: ReactNode }) => {
       } else {
         throw new Error(res.error || "Failed");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating member: ", error);
-      toast({ variant: 'destructive', title: "Error", description: "Could not update member." });
+      toast({ variant: 'destructive', title: "Error", description: error.message || "Could not update member." });
+      throw error;
     }
   };
 
