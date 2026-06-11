@@ -55,9 +55,12 @@ export async function middleware(request: NextRequest) {
     const legacyCookieName = isProduction ? '__Secure-next-auth.session-token' : 'next-auth.session-token';
     
     // Get token using NextAuth v5 cookie name (salt)
+    // Must pass both cookieName AND salt — cookieName is used by SessionStore
+    // to look up the cookie from headers, salt is used for JWT decryption.
     let token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+      cookieName: cookieName,
       salt: cookieName,
     });
 
@@ -66,6 +69,7 @@ export async function middleware(request: NextRequest) {
       token = await getToken({
         req: request,
         secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+        cookieName: legacyCookieName,
         salt: legacyCookieName,
       });
     }
