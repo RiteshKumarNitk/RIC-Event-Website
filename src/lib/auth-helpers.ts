@@ -48,9 +48,15 @@ export async function requireAdmin(req: NextRequest) {
   if (!secretStr) {
     throw new Error("JWT secret not configured. Set NEXTAUTH_SECRET or AUTH_SECRET environment variable.");
   }
+
+  const isProduction = process.env.NODE_ENV === 'production';
+  const cookieName = isProduction ? '__Secure-authjs.session-token' : 'authjs.session-token';
+
   const token = await getToken({
     req: req as any,
     secret: secretStr,
+    cookieName: cookieName,
+    salt: cookieName,
   });
 
   if (!token || token.role !== "ADMIN") {
