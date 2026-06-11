@@ -8,19 +8,22 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Unlock, UserPlus, Loader2, Crown, Info,
-  X, Ticket
+  X, Ticket, Shield, ShieldCheck, Users, Sparkles, AlertTriangle
 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import Link from "next/link";
-import { RIC_AUDITORIUM } from "@/lib/seat-layouts";
+import { RIC_AUDITORIUM, getSeatIdsForRow, getSeatIdsForBlock, getAllRowLabels, getSections } from "@/lib/seat-layouts";
 import {
   getBlockedSeats, toggleBlockSeat, getAllMembers, adminCreateBooking,
-  unblockAllSeats, getEventSeatDetails, type OccupiedSeatInfo,
+  unblockAllSeats, getEventSeatDetails, getSeatAccessTiers,
+  setSeatAccessTier, bulkSetSeatAccessTiers, clearSeatAccessTier,
+  type OccupiedSeatInfo, type SeatAccessTierType,
 } from "@/app/actions/seat-admin-actions";
 import { useEvents } from "../../events-provider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { SeatingChart } from "@/components/events/seating-chart";
+import { SeatingChart } from "@/components/events/seating-chart"
 
 // ─── Helpers ───
 function getSeatOccupant(seatId: string, occupied: OccupiedSeatInfo[]): OccupiedSeatInfo | undefined {
@@ -44,6 +47,16 @@ export default function SeatControlPage() {
   // Tooltip state
   const [tooltipSeat, setTooltipSeat] = useState<string | null>(null);
 
+  // Access tier state
+  const [seatTiers, setSeatTiers] = useState<Record<string, SeatAccessTierType>>({});
+  const [selectedTier, setSelectedTier] = useState<SeatAccessTierType | null>(null);
+  const [tierBulkMode, setTierBulkMode] = useState<"row" | "section" | null>(null);
+  const [tierBulkTarget, setTierBulkTarget] = useState("");
+  const [tierApplying, setTierApplying] = useState(false);
+  const [tierConfirmOpen, setTierConfirmOpen] = useState(false);
+  const [tierConfirmData, setTierConfirmData] = useState<{ label: string; count: number; onConfirm: () => void } | null>(null);
+  const TIER_BULK_THRESHOLD = 20;
+
   // Admin booking state
   const [members, setMembers] = useState<any[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState("");
@@ -52,10 +65,11 @@ export default function SeatControlPage() {
   const [creating, setCreating] = useState(false);
 
   const fetchAll = async () => {
-    const [blockedRes, membersRes, detailsRes] = await Promise.all([
+    const [blockedRes, membersRes, detailsRes, tiersRes] = await Promise.all([
       getBlockedSeats(eventId),
       getAllMembers(),
       getEventSeatDetails(eventId),
+      getSeatAccessTiers(eventId),
     ]);
     if (blockedRes.success && blockedRes.seats) {
       setBlockedSeats(new Set(blockedRes.seats.map(s => s.seatId)));
@@ -65,6 +79,9 @@ export default function SeatControlPage() {
     }
     if (detailsRes.success && detailsRes.details) {
       setOccupiedSeats(detailsRes.details.occupied);
+    }
+    if (tiersRes.success && tiersRes.tiers) {
+      setSeatTiers(tiersRes.tiers);
     }
     setLoading(false);
     setMembersLoading(false);
@@ -89,6 +106,77 @@ export default function SeatControlPage() {
       toast({ variant: "destructive", title: "Error", description: res.error });
     }
     setToggling(null);
+  };
+
+  // ─── Access Tier Handlers ───
+  const handleSetTierForSeat = async (seatId: string, tier: SeatAccessTierType) => {
+    setTierApplying(true);
+    const res = await setSeatAccessTier(eventId, seatId, tier);
+    if (res.success) {
+      setSeatTiers(prev => ({ ...prev, [seatId]: tier }));
+      toast({ title: "Tier Updated", description: `${seatId} → ${tier.replace('_', ' ')}` });
+    } else {
+      toast({ variant: "destructive", title: "Error", description: res.error });
+    }
+    setTierApplying(false);
+  };
+
+  const handleClearTierForSeat = async (seatId: string) => {
+    setTierApplying(true);
+    const res = await clearSeatAccessTier(eventId, seatId);
+    if (res.success) {
+      setSeatTiers(prev => {
+        const next = { ...prev };
+        delete next[seatId];
+        return next;
+      });
+      toast({ title: "Tier Cleared", description: `${seatId} reset to General Admission` });
+    } else {
+      toast({ variant: "destructive", title: "Error", description: res.error });
+    }
+    setTierApplying(false);
+  };
+
+  const handleBulkSetTier = async (seatIds: string[], tier: SeatAccessTierType) => {
+    setTierApplying(true);
+    const res = await bulkSetSeatAccessTiers(eventId, seatIds, tier);
+    if (res.success) {
+      const updated = { ...seatTiers };
+      for (const id of seatIds) updated[id] = tier;
+      setSeatTiers(updated);
+      toast({ title: "Bulk Tier Updated", description: `${seatIds.length} seats → ${tier.replace('_', ' ')}` });
+    } else {
+      toast({ variant: "destructive", title: "Error", description: res.error });
+    }
+    setTierApplying(false);
+  };
+
+  const handleBulkTierAction = async () => {
+    if (!selectedTier || !tierBulkTarget) return;
+    let seatIds: string[] = [];
+    let label = "";
+    if (tierBulkMode === "row") {
+      seatIds = getSeatIdsForRow(RIC_AUDITORIUM, tierBulkTarget);
+      label = `Row ${tierBulkTarget}`;
+    } else if (tierBulkMode === "section") {
+      seatIds = getSeatIdsForBlock(RIC_AUDITORIUM, tierBulkTarget);
+      label = `Section ${tierBulkTarget}`;
+    }
+    if (seatIds.length === 0) return;
+    if (seatIds.length >= TIER_BULK_THRESHOLD) {
+      setTierConfirmData({
+        label: `${label} → ${selectedTier.replace('_', ' ')}`,
+        count: seatIds.length,
+        onConfirm: async () => {
+          await handleBulkSetTier(seatIds, selectedTier);
+          setTierBulkTarget("");
+        },
+      });
+      setTierConfirmOpen(true);
+    } else {
+      await handleBulkSetTier(seatIds, selectedTier);
+      setTierBulkTarget("");
+    }
   };
 
   const handleBookForMember = async () => {
@@ -117,6 +205,15 @@ export default function SeatControlPage() {
   const handleSelectSeat = (seatId: string) => {
     if (blockedSeats.has(seatId)) return;
     if (occupiedSeats.some(o => o.seatId === seatId)) return; // Can't select occupied
+    // If a tier is selected, apply/clear tier instead of selecting
+    if (selectedTier) {
+      if (seatTiers[seatId] === selectedTier) {
+        handleClearTierForSeat(seatId);
+      } else {
+        handleSetTierForSeat(seatId, selectedTier);
+      }
+      return;
+    }
     setSelectedSeats(prev =>
       prev.includes(seatId) ? prev.filter(s => s !== seatId) : [...prev, seatId]
     );
@@ -155,6 +252,7 @@ export default function SeatControlPage() {
   const member = members.find(m => String(m.memberId) === selectedMemberId);
 
   return (
+    <>
     <div className="space-y-6 max-w-5xl">
       <div className="flex items-center gap-2">
         <Button asChild variant="outline" size="sm">
@@ -182,6 +280,7 @@ export default function SeatControlPage() {
                 blockedSeats={Array.from(blockedSeats)}
                 occupiedSeats={occupiedSeats}
                 selectedSeatIds={selectedSeats}
+                seatTiers={seatTiers}
                 onSeatClick={(seatId) => {
                   const isBlocked = blockedSeats.has(seatId);
                   const isOccupied = occupiedSeats.some(o => o.seatId === seatId);
@@ -193,7 +292,6 @@ export default function SeatControlPage() {
           </Card>
         </div>
 
-        {/* ─── Sidebar Controls ─── */}
         {/* ─── Sidebar Controls ─── */}
         <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
           
@@ -329,6 +427,134 @@ export default function SeatControlPage() {
             </CardContent>
           </Card>
 
+          {/* Access Tier Controls */}
+          <Card className="border-0 shadow-md overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-pink-500 to-indigo-500" />
+            <CardHeader className="py-4 px-5 bg-slate-50/50">
+              <CardTitle className="text-base flex items-center gap-2">
+                <div className="bg-indigo-100 p-1.5 rounded-lg text-indigo-600">
+                  <Shield className="h-4 w-4" />
+                </div>
+                Access Tier
+              </CardTitle>
+              <CardDescription className="text-xs">Mark seats as VIP-only, Members-only, or General Admission.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              {/* Tier Toggle Buttons */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Select Tier Mode</Label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {([
+                    { tier: null as SeatAccessTierType | null, label: "Off", icon: null, color: "bg-slate-100 text-slate-600 border-slate-200" },
+                    { tier: "VIP_ONLY" as const, label: "VIP", icon: Crown, color: "bg-pink-100 text-pink-700 border-pink-300" },
+                    { tier: "MEMBERS_ONLY" as const, label: "Members", icon: Users, color: "bg-amber-100 text-amber-700 border-amber-300" },
+                    { tier: "GENERAL" as const, label: "General", icon: ShieldCheck, color: "bg-green-100 text-green-700 border-green-300" },
+                  ]).map(({ tier, label, icon: Icon, color }) => (
+                    <Button
+                      key={label}
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-auto py-2 flex flex-col items-center gap-1 text-[10px] font-semibold transition-all",
+                        selectedTier === tier ? "ring-2 ring-offset-1 ring-indigo-500 " + color : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                      )}
+                      onClick={() => {
+                        setSelectedTier(selectedTier === tier ? null : tier);
+                        setSelectedSeats([]); // Clear booking selection when switching to tier mode
+                      }}
+                      disabled={tierApplying}
+                    >
+                      {Icon && <Icon className="h-3.5 w-3.5" />}
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                {selectedTier && (
+                  <p className="text-[10px] text-indigo-600 font-medium flex items-center gap-1 mt-1">
+                    <Sparkles className="h-3 w-3" />
+                    Click seats to assign {selectedTier.replace('_', ' ').toLowerCase()}
+                  </p>
+                )}
+              </div>
+
+              {/* Bulk Tier Actions */}
+              {selectedTier && (
+                <div className="space-y-3 border-t border-slate-100 pt-4">
+                  <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Bulk Assign</Label>
+                  
+                  {/* By Row */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-slate-400 font-medium">By Row</p>
+                    <div className="flex gap-2">
+                      <Select value={tierBulkMode === 'row' ? tierBulkTarget : ''} onValueChange={(v) => { setTierBulkMode('row'); setTierBulkTarget(v); }}>
+                        <SelectTrigger className="h-9 text-xs bg-white">
+                          <SelectValue placeholder="Select row..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getAllRowLabels(RIC_AUDITORIUM).map(row => (
+                            <SelectItem key={row} value={row}>Row {row}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-9 px-3 text-xs"
+                        disabled={!tierBulkTarget || tierBulkMode !== 'row' || tierApplying}
+                        onClick={handleBulkTierAction}
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* By Section */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-slate-400 font-medium">By Section</p>
+                    <div className="flex gap-2">
+                      <Select value={tierBulkMode === 'section' ? tierBulkTarget : ''} onValueChange={(v) => { setTierBulkMode('section'); setTierBulkTarget(v); }}>
+                        <SelectTrigger className="h-9 text-xs bg-white">
+                          <SelectValue placeholder="Select section..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getSections(RIC_AUDITORIUM).map(sec => (
+                            <SelectItem key={sec.id} value={sec.id}>{sec.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-9 px-3 text-xs"
+                        disabled={!tierBulkTarget || tierBulkMode !== 'section' || tierApplying}
+                        onClick={handleBulkTierAction}
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tier Stats */}
+              <div className="border-t border-slate-100 pt-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500">Seats with tiers assigned</span>
+                  <Badge variant="outline" className="font-mono bg-white text-slate-700">
+                    {Object.keys(seatTiers).length}
+                  </Badge>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  {Object.entries(Object.values(seatTiers).reduce<Record<string, number>>((acc, tier) => { acc[tier] = (acc[tier] || 0) + 1; return acc; }, {})).map(([tier, count]) => (
+                    <Badge key={tier} variant="secondary" className="text-[10px] font-mono">
+                      {tier.replace('_', ' ')}: {count}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Blocked Seats Controls */}
           <Card className="border-0 shadow-sm bg-slate-50/50">
             <CardContent className="p-4 flex items-center justify-between">
@@ -359,5 +585,39 @@ export default function SeatControlPage() {
         </div>
       </div>
     </div>
+
+    {/* Bulk Tier Confirmation Dialog */}
+    <AlertDialog open={tierConfirmOpen} onOpenChange={setTierConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            Confirm Bulk Tier Assignment
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            You are about to assign <strong>{tierConfirmData?.count}</strong> seats to
+            <strong> {tierConfirmData?.label?.split(' → ')[1]}</strong>
+            {tierConfirmData?.label ? ` (${tierConfirmData.label.split(' → ')[0]})` : ""}.
+            {tierConfirmData?.count && tierConfirmData.count > 50 && (
+              <span className="block mt-1 text-amber-600 font-medium">
+                This is a large selection. Make sure this is intentional.
+              </span>
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              tierConfirmData?.onConfirm();
+              setTierConfirmData(null);
+            }}
+          >
+            Apply to {tierConfirmData?.count} Seats
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

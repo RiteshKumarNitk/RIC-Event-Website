@@ -157,6 +157,81 @@ export async function getEventSeatDetails(eventId: string): Promise<{
   }
 }
 
+// ─── Seat Access Tiers ───
+export type SeatAccessTierType = "VIP_ONLY" | "MEMBERS_ONLY" | "GENERAL";
+
+export async function getSeatAccessTiers(eventId: string) {
+  try {
+    const tiers = await prisma.seatAccessTier.findMany({
+      where: { eventId },
+      select: { seatId: true, tier: true },
+    });
+    const tierMap: Record<string, SeatAccessTierType> = {};
+    for (const t of tiers) {
+      tierMap[t.seatId] = t.tier as SeatAccessTierType;
+    }
+    return { success: true, tiers: tierMap };
+  } catch (error) {
+    console.error("Error fetching seat access tiers:", error);
+    return { success: false, error: "Failed to fetch access tiers" };
+  }
+}
+
+export async function setSeatAccessTier(eventId: string, seatId: string, tier: SeatAccessTierType) {
+  try {
+    await requireAdminSession();
+    await prisma.seatAccessTier.upsert({
+      where: { eventId_seatId: { eventId, seatId } },
+      update: { tier },
+      create: { eventId, seatId, tier },
+    });
+    revalidatePath(`/events/${eventId}/seats-control`);
+    return { success: true };
+  } catch (error) {
+    console.error("Error setting seat access tier:", error);
+    return { success: false, error: "Failed to set access tier" };
+  }
+}
+
+export async function bulkSetSeatAccessTiers(eventId: string, seatIds: string[], tier: SeatAccessTierType) {
+  try {
+    await requireAdminSession();
+    await prisma.seatAccessTier.createMany({
+      data: seatIds.map(seatId => ({ eventId, seatId, tier })),
+      skipDuplicates: true,
+    });
+    // Update existing entries
+    const existing = await prisma.seatAccessTier.findMany({
+      where: { eventId, seatId: { in: seatIds }, tier: { not: tier } },
+    });
+    if (existing.length > 0) {
+      await prisma.seatAccessTier.updateMany({
+        where: { eventId, seatId: { in: seatIds }, tier: { not: tier } },
+        data: { tier },
+      });
+    }
+    revalidatePath(`/events/${eventId}/seats-control`);
+    return { success: true, updated: seatIds.length };
+  } catch (error) {
+    console.error("Error bulk setting seat access tiers:", error);
+    return { success: false, error: "Failed to bulk set access tiers" };
+  }
+}
+
+export async function clearSeatAccessTier(eventId: string, seatId: string) {
+  try {
+    await requireAdminSession();
+    await prisma.seatAccessTier.deleteMany({
+      where: { eventId, seatId },
+    });
+    revalidatePath(`/events/${eventId}/seats-control`);
+    return { success: true };
+  } catch (error) {
+    console.error("Error clearing seat access tier:", error);
+    return { success: false, error: "Failed to clear access tier" };
+  }
+}
+
 export async function getAllMembers() {
   try {
     const members = await prisma.member.findMany({

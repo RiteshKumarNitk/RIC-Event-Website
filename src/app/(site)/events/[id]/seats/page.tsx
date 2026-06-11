@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useMemberAuth } from "@/hooks/use-member-auth";
 import { verifyMemberForSeatSelection } from "@/app/actions/member-link-actions";
 import { getBookedSeats } from "@/app/actions/booking-actions";
+import { getSeatAccessTiers, type SeatAccessTierType } from "@/app/actions/seat-admin-actions";
 import Link from "next/link";
 
 type BookingStep = "showtime" | "seats" | "summary";
@@ -243,6 +244,7 @@ export default function SeatsPage() {
     const [bookedSeats, setBookedSeats] = useState<string[]>([]);
     const [reservedSeats, setReservedSeats] = useState<string[]>([]);
     const [bookingsVersion, setBookingsVersion] = useState(0); // Increment to trigger refetch
+    const [seatTiers, setSeatTiers] = useState<Record<string, SeatAccessTierType>>({});
 
     // Member state
     const [memberStatus, setMemberStatus] = useState<{
@@ -293,6 +295,16 @@ export default function SeatsPage() {
             });
         }
     }, [loggedInMember, memberLoading, memberStatus]);
+
+    // Fetch seat access tiers
+    useEffect(() => {
+        if (!id) return;
+        getSeatAccessTiers(id).then((res) => {
+            if (res.success && res.tiers) {
+                setSeatTiers(res.tiers);
+            }
+        });
+    }, [id]);
 
     // Fetch booked and reserved seats
     useEffect(() => {
@@ -455,6 +467,8 @@ export default function SeatsPage() {
                                 memberLabel={memberStatus?.name ? `${memberStatus.name} (${memberStatus.categoryAcronym || "Member"})` : undefined}
                                 bookedSeats={bookedSeats}
                                 reservedSeats={reservedSeats}
+                                seatTiers={seatTiers}
+                                memberCategory={memberStatus?.categoryAcronym}
                             />
                         </div>
                     </div>

@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, X, Users, MapPin, Calendar, CheckCircle, Rows3, LayoutGrid, Trash2 } from "lucide-react";
+import { Loader2, X, MapPin, Calendar, CheckCircle, Rows3, LayoutGrid, Trash2, Search, AlertTriangle } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useEvents } from "../events/events-provider";
 import { RIC_AUDITORIUM, getSeatIdsForRow, getSeatIdsForBlock, getAllRowLabels, getSections } from "@/lib/seat-layouts";
 import { SeatingChart } from "@/components/events/seating-chart";
@@ -28,8 +29,8 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
   const { toast } = useToast();
 
   const [selectedEventId, setSelectedEventId] = useState("");
-  const [selectedMemberId, setSelectedMemberId] = useState("");
-  const [guestCount, setGuestCount] = useState(0);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [memberSearch, setMemberSearch] = useState("");
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [occupiedSeats, setOccupiedSeats] = useState<OccupiedSeatInfo[]>([]);
   const [blockedSeats, setBlockedSeats] = useState<string[]>([]);
@@ -66,7 +67,23 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
   }, [selectedEventId]);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
-  const selectedMember = members.find((m) => String(m.memberId) === selectedMemberId);
+  const selectedMembers = members.filter((m) => selectedMemberIds.includes(String(m.memberId)));
+
+  const toggleMember = (memberId: string) => {
+    setSelectedMemberIds((prev) =>
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId]
+    );
+  };
+
+  const filteredMembers = members.filter((m) => {
+    if (!memberSearch) return true;
+    const q = memberSearch.toLowerCase();
+    return (
+      m.name.toLowerCase().includes(q) ||
+      String(m.memberId).includes(q) ||
+      (m.categoryAcronym || "").toLowerCase().includes(q)
+    );
+  });
 
   const isOccupied = useCallback((seatId: string) => {
     return occupiedSeats.some((o) => o.seatId === seatId) || blockedSeats.includes(seatId);
@@ -82,21 +99,38 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
   // Bulk selection helpers
   const [bulkRow, setBulkRow] = useState("");
   const [bulkSection, setBulkSection] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmData, setConfirmData] = useState<{ label: string; count: number; onConfirm: () => void } | null>(null);
+
+  const BULK_THRESHOLD = 20;
+
+  const applySeatSelection = (seatIds: string[], label: string) => {
+    setSelectedSeats(prev => {
+      const existing = new Set(prev);
+      const toAdd = seatIds.filter(s => !existing.has(s));
+      if (toAdd.length > 0) {
+        toast({ title: label, description: `${toAdd.length} seat(s) selected.` });
+      } else {
+        toast({ variant: "destructive", title: label, description: `All seats are already occupied or selected.` });
+      }
+      return [...prev, ...toAdd];
+    });
+  };
+
+  const requestBulkSelection = (seatIds: string[], label: string) => {
+    if (seatIds.length >= BULK_THRESHOLD) {
+      setConfirmData({ label, count: seatIds.length, onConfirm: () => applySeatSelection(seatIds, label) });
+      setConfirmOpen(true);
+    } else {
+      applySeatSelection(seatIds, label);
+    }
+  };
 
   const handleSelectRow = (rowLabel: string) => {
     const allRowSeats = getSeatIdsForRow(RIC_AUDITORIUM, rowLabel);
     const available = allRowSeats.filter(s => !isOccupied(s));
     const skipped = allRowSeats.length - available.length;
-    setSelectedSeats(prev => {
-      const existing = new Set(prev);
-      const toAdd = available.filter(s => !existing.has(s));
-      if (toAdd.length > 0) {
-        toast({ title: `Row ${rowLabel}`, description: `${toAdd.length} seat(s) selected${skipped > 0 ? `. ${skipped} already occupied.` : ""}` });
-      } else {
-        toast({ variant: "destructive", title: `Row ${rowLabel}`, description: `All ${allRowSeats.length} seats are already occupied or selected.` });
-      }
-      return [...prev, ...toAdd];
-    });
+    requestBulkSelection(available, `Row ${rowLabel}${skipped > 0 ? ` (${skipped} occupied)` : ""}`);
     setBulkRow("");
   };
 
@@ -104,49 +138,38 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
     const allBlockSeats = getSeatIdsForBlock(RIC_AUDITORIUM, blockId);
     const available = allBlockSeats.filter(s => !isOccupied(s));
     const skipped = allBlockSeats.length - available.length;
-    setSelectedSeats(prev => {
-      const existing = new Set(prev);
-      const toAdd = available.filter(s => !existing.has(s));
-      if (toAdd.length > 0) {
-        toast({ title: `Section ${blockId}`, description: `${toAdd.length} seat(s) selected${skipped > 0 ? `. ${skipped} already occupied.` : ""}` });
-      } else {
-        toast({ variant: "destructive", title: `Section ${blockId}`, description: `All ${allBlockSeats.length} seats are already occupied or selected.` });
-      }
-      return [...prev, ...toAdd];
-    });
+    requestBulkSelection(available, `Section ${blockId}${skipped > 0 ? ` (${skipped} occupied)` : ""}`);
     setBulkSection("");
   };
 
-  const handleSelectAllAvailable = async () => {
+  const handleSelectAllAvailable = () => {
     const sections = getSections(RIC_AUDITORIUM);
     const allSeatIds = sections.flatMap(s => getSeatIdsForBlock(RIC_AUDITORIUM, s.id));
     const available = allSeatIds.filter(s => !isOccupied(s));
-    if (available.length > 20) {
-      // Show confirmation for large selections
-      if (!window.confirm(`Select ${available.length} available seats? This is a large selection.`)) return;
-    }
-    setSelectedSeats(prev => {
-      const existing = new Set(prev);
-      const toAdd = available.filter(s => !existing.has(s));
-      toast({ title: "Select All", description: `${toAdd.length} seat(s) selected.` });
-      return [...prev, ...toAdd];
-    });
+    requestBulkSelection(available, "Select All");
   };
 
   const handleSubmit = async () => {
-    if (!selectedEventId || !selectedMemberId || selectedSeats.length === 0) return;
+    if (!selectedEventId || selectedMemberIds.length === 0 || selectedSeats.length === 0) return;
+    if (selectedSeats.length !== selectedMemberIds.length) {
+      toast({ variant: "destructive", title: "Mismatch", description: `Select exactly ${selectedMemberIds.length} seat(s) for ${selectedMemberIds.length} member(s).` });
+      return;
+    }
     setSubmitting(true);
 
     let successCount = 0;
     let failCount = 0;
 
-    for (const seatId of selectedSeats) {
+    for (let i = 0; i < selectedSeats.length; i++) {
+      const seatId = selectedSeats[i];
+      const member = selectedMembers[i];
+      if (!member) continue;
       const res = await createReservation({
         eventId: selectedEventId,
         seatId,
-        memberId: parseInt(selectedMemberId),
-        memberName: selectedMember?.name || "",
-        guestCount,
+        memberId: parseInt(String(member.memberId)),
+        memberName: member.name || "",
+        guestCount: 0,
       });
       if (res.success) {
         successCount++;
@@ -158,7 +181,7 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
     if (successCount > 0) {
       toast({
         title: "Reservations Created",
-        description: `${successCount} seat(s) reserved for ${selectedMember?.name || "member"}${failCount > 0 ? `. ${failCount} failed (already taken).` : ""}`,
+        description: `${successCount} seat(s) reserved across ${selectedMembers.length} member(s)${failCount > 0 ? `. ${failCount} failed.` : ""}`,
       });
       onCreated?.();
       handleClose();
@@ -166,7 +189,7 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
       toast({
         variant: "destructive",
         title: "Failed",
-        description: "All selected seats could not be reserved. They may have been taken.",
+        description: "All reservations failed. Seats may have been taken.",
       });
     }
 
@@ -175,9 +198,11 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
 
   const handleClose = () => {
     setSelectedEventId("");
-    setSelectedMemberId("");
+    setSelectedMemberIds([]);
     setSelectedSeats([]);
-    setGuestCount(0);
+    setMemberSearch("");
+    setBulkRow("");
+    setBulkSection("");
     setOccupiedSeats([]);
     setStep(1);
     onOpenChange(false);
@@ -185,12 +210,13 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
 
   const canProceed = () => {
     if (step === 1) return !!selectedEventId;
-    if (step === 2) return !!selectedMemberId;
-    if (step === 3) return selectedSeats.length > 0;
+    if (step === 2) return selectedMemberIds.length > 0;
+    if (step === 3) return selectedSeats.length > 0 && selectedSeats.length === selectedMemberIds.length;
     return false;
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -268,7 +294,7 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
           </div>
         )}
 
-        {/* Step 2: Select Member */}
+        {/* Step 2: Select Members */}
         {step === 2 && selectedEvent && (
           <div className="space-y-4">
             <div className="bg-muted/50 rounded-lg p-3 flex items-center gap-3">
@@ -276,25 +302,51 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
               <span className="text-sm font-medium">{selectedEvent.name}</span>
               <span className="text-xs text-muted-foreground">• {format(new Date(selectedEvent.date), "MMM d, yyyy")}</span>
             </div>
-            <Label className="text-sm font-semibold">Choose a Member</Label>
-            <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
-              <SelectTrigger className="h-10">
-                <SelectValue placeholder="Search members..." />
-              </SelectTrigger>
-              <SelectContent>
-                {members.map((m) => (
-                  <SelectItem key={m.id} value={String(m.memberId)}>
-                    {m.memberId} — {m.name} {m.categoryAcronym ? `(${m.categoryAcronym})` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedMember && (
-              <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
-                <p className="font-semibold text-amber-900 text-sm">{selectedMember.name}</p>
-                <p className="text-xs text-amber-700">ID: {selectedMember.memberId} • {selectedMember.categoryAcronym || "Member"}</p>
-              </div>
-            )}
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">Select Members ({selectedMemberIds.length} selected)</Label>
+              {selectedMemberIds.length > 0 && (
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600" onClick={() => setSelectedMemberIds([])}>
+                  Clear All
+                </Button>
+              )}
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, ID, or category..."
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+            <div className="border rounded-lg max-h-[320px] overflow-y-auto divide-y">
+              {filteredMembers.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">No members found</p>
+              )}
+              {filteredMembers.map((m) => {
+                const isChecked = selectedMemberIds.includes(String(m.memberId));
+                return (
+                  <label
+                    key={m.id}
+                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${
+                      isChecked ? "bg-amber-50/80" : "hover:bg-muted/50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleMember(String(m.memberId))}
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{m.name}</p>
+                      <p className="text-xs text-muted-foreground">ID: {m.memberId}{m.categoryAcronym ? ` • ${m.categoryAcronym}` : ""}</p>
+                    </div>
+                    {isChecked && <CheckCircle className="h-4 w-4 text-primary shrink-0" />}
+                  </label>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -304,8 +356,14 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
             <div className="flex items-center gap-3 text-sm">
               <span className="font-medium">{selectedEvent.name}</span>
               <span className="text-muted-foreground">•</span>
-              <span className="text-muted-foreground">{selectedMember?.name}</span>
+              <span className="text-muted-foreground">{selectedMembers.length} member(s) selected</span>
             </div>
+            {selectedMembers.length !== selectedSeats.length && selectedSeats.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+                ⚠ Select exactly {selectedMembers.length} seat(s) to match {selectedMembers.length} member(s).
+                {selectedSeats.length > selectedMembers.length ? ` (${selectedSeats.length - selectedMembers.length} too many)` : ` (${selectedMembers.length - selectedSeats.length} more needed)`}
+              </div>
+            )}
             <Label className="text-sm font-semibold">Select Seats on the Map</Label>
 
             {/* Bulk Selection Controls */}
@@ -367,18 +425,23 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
               </Card>
             )}
 
-            {/* Guest count */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Guest Count (optional)</Label>
-              <Input
-                type="number"
-                min={0}
-                max={10}
-                value={guestCount}
-                onChange={(e) => setGuestCount(Math.min(10, Math.max(0, parseInt(e.target.value) || 0)))}
-                className="w-32"
-              />
-            </div>
+            {/* Member-Seat assignment summary */}
+            {selectedMembers.length > 0 && selectedSeats.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Seat Assignments</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {selectedMembers.map((m, i) => (
+                    <div key={m.id} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs">
+                      <span className="font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                        {selectedSeats[i] || "—"}
+                      </span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className="font-medium truncate">{m.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Selected seats summary */}
             {selectedSeats.length > 0 && (
@@ -420,11 +483,43 @@ export function CreateReservationDialog({ open, onOpenChange, onCreated }: Creat
           ) : (
             <Button disabled={!canProceed() || submitting} onClick={handleSubmit}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-              Create {selectedSeats.length > 1 ? `${selectedSeats.length} Reservations` : "Reservation"}
+              Create {selectedMembers.length > 1 ? `${selectedMembers.length} Reservations` : "Reservation"}
             </Button>
           )}
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Bulk Selection Confirmation Dialog */}
+    <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            Confirm Bulk Selection
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            You are about to select <strong>{confirmData?.count}</strong> seats{confirmData?.label ? ` for "${confirmData.label}"` : ""}.
+            {confirmData?.count && confirmData.count > 50 && (
+              <span className="block mt-1 text-amber-600 font-medium">
+                This is a large selection. Make sure this is intentional.
+              </span>
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              confirmData?.onConfirm();
+              setConfirmData(null);
+            }}
+          >
+            Select {confirmData?.count} Seats
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

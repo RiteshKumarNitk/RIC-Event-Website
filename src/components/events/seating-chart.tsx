@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { AuditoriumLayoutConfig, SeatCategory, SeatBlock } from "@/lib/seat-layouts";
 import { ZoomIn, ZoomOut, Maximize2, MousePointer2, Crown, Info } from "lucide-react";
 import type { OccupiedSeatInfo } from "@/app/actions/seat-admin-actions";
+import type { SeatAccessTierType } from "@/app/actions/seat-admin-actions";
 
 const CATEGORY_COLORS: Record<SeatCategory, { fill: string; stroke: string; text: string; bg: string; border: string }> = {
   Standard: { fill: "#ffffff", stroke: "#22c55e", text: "#22c55e", bg: "bg-green-500", border: "border-green-200" },
@@ -51,6 +52,8 @@ export function SeatingChart({
   occupiedSeats = [],
   selectedSeatIds = [],
   onSeatClick,
+  seatTiers = {},
+  memberCategory,
 }: {
   event: Event;
   ticketCount: number;
@@ -68,6 +71,8 @@ export function SeatingChart({
   occupiedSeats?: OccupiedSeatInfo[];
   selectedSeatIds?: string[];
   onSeatClick?: (seatId: string) => void;
+  seatTiers?: Record<string, SeatAccessTierType>;
+  memberCategory?: string;
 }) {
   const [selectedSeats, setSelectedSeats] = useState<SeatState[]>([]);
   const [zoom, setZoom] = useState(1);
@@ -89,10 +94,33 @@ export function SeatingChart({
 
   const hasMembersBlocks = layout.blocks.some((b) => b.membersOnly);
 
+  // Determine if a seat is restricted by a dynamic access tier (non-admin mode)
+  const isTierRestricted = useCallback((seatId: string): { restricted: boolean; reason?: string } => {
+    if (adminMode) return { restricted: false };
+    const tier = seatTiers[seatId];
+    if (!tier || tier === 'GENERAL') return { restricted: false };
+    if (tier === 'MEMBERS_ONLY') {
+      if (!isMember) return { restricted: true, reason: 'Members Only' };
+    } else if (tier === 'VIP_ONLY') {
+      if (!isMember) return { restricted: true, reason: 'VIP Only' };
+      // If they are a member, check if their category qualifies (VIP or higher)
+      const isVip = memberCategory && (memberCategory.toUpperCase().includes('VIP') || memberCategory.toUpperCase().includes('FM') || memberCategory.toUpperCase().includes('CORP'));
+      if (!isVip) return { restricted: true, reason: 'VIP Members Only' };
+    }
+    return { restricted: false };
+  }, [adminMode, seatTiers, isMember, memberCategory]);
+
   const handleSelectSeat = (seat: SeatState) => {
     if (seat.isBooked) return;
+    // Enforce static membersOnly from layout config
     if (seat.membersOnly && !isMember) {
       toast({ variant: "destructive", title: "Members Only", description: "Please verify your membership to select these seats." });
+      return;
+    }
+    // Enforce dynamic access tier restrictions
+    const { restricted, reason } = isTierRestricted(seat.id);
+    if (restricted) {
+      toast({ variant: "destructive", title: reason || "Restricted", description: `These seats are ${reason}. Please verify your eligibility.` });
       return;
     }
     const isSelected = selectedSeats.some(s => s.id === seat.id);
@@ -182,6 +210,30 @@ export function SeatingChart({
             <div className="w-4 h-4 rounded-sm bg-gray-200 border border-gray-300" />
             <span className="text-[10px] font-bold uppercase text-gray-500">Booked</span>
           </div>
+          {!adminMode && Object.keys(seatTiers).length > 0 && (
+            <>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="w-4 h-4 rounded-sm bg-gray-100 border border-gray-300 opacity-50" />
+                <span className="text-[10px] font-bold uppercase text-gray-400">Restricted</span>
+              </div>
+            </>
+          )}
+          {adminMode && (
+            <>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="w-4 h-4 rounded-sm bg-pink-100 border border-pink-400" />
+                <span className="text-[10px] font-bold uppercase text-pink-600">VIP Only</span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="w-4 h-4 rounded-sm bg-amber-100 border border-amber-400" />
+                <span className="text-[10px] font-bold uppercase text-amber-600">Members Only</span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="w-4 h-4 rounded-sm bg-green-100 border border-green-400" />
+                <span className="text-[10px] font-bold uppercase text-green-600">General</span>
+              </div>
+            </>
+          )}
         </div>
 
         {isMember && memberLabel && (
@@ -311,13 +363,28 @@ export function SeatingChart({
                         seatFill = "#fee2e2";
                         seatStroke = "#ef4444";
                       }
-                      
+
+                      // Access tier coloring for admin mode
+                      const tier = adminMode ? seatTiers[seatId] : undefined;
+                      if (adminMode && tier && !_isBlocked && !_isBooked && !isSelected) {
+                        if (tier === 'VIP_ONLY') { seatFill = '#fce7f3'; seatStroke = '#db2777'; }
+                        else if (tier === 'MEMBERS_ONLY') { seatFill = '#fef3c7'; seatStroke = '#d97706'; }
+                        else if (tier === 'GENERAL') { seatFill = '#dcfce7'; seatStroke = '#16a34a'; }
+                      }
+
+                      // Public mode: visually dim tier-restricted seats for ineligible users
+                      const { restricted: isRestricted } = !adminMode ? isTierRestricted(seatId) : { restricted: false };
+                      if (!adminMode && isRestricted && !_isBooked && !_isReserved) {
+                        seatFill = '#fef9ee';
+                        seatStroke = '#d4a843';
+                      }
+
                       const occupant = adminMode ? occupiedSeats?.find(o => o.seatId === seatId) : null;
 
                       return (
                         <g
                           key={c}
-                          className={adminMode ? "cursor-pointer" : (seatState.isBooked ? "cursor-not-allowed opacity-50" : "cursor-pointer")}
+                          className={adminMode ? "cursor-pointer" : (seatState.isBooked || isRestricted ? "cursor-not-allowed opacity-50" : "cursor-pointer")}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (adminMode && onSeatClick) {
@@ -366,6 +433,15 @@ export function SeatingChart({
                           {/* Admin Toolkit: Blocked Indicator */}
                           {adminMode && _isBlocked && (
                             <line x1={seatX} y1={rowY} x2={seatX + SEAT_W} y2={rowY + SEAT_H} stroke="#ef4444" strokeWidth="1.5" />
+                          )}
+
+                          {/* Admin Toolkit: Tier Indicator Badge */}
+                          {adminMode && tier && !_isBlocked && !_isBooked && !isSelected && (
+                            <g className="pointer-events-none">
+                              <circle cx={seatX + SEAT_W - 1} cy={rowY + 1} r={3} fill={
+                                tier === 'VIP_ONLY' ? '#db2777' : tier === 'MEMBERS_ONLY' ? '#d97706' : '#16a34a'
+                              } stroke="white" strokeWidth="0.5" />
+                            </g>
                           )}
                         </g>
                       );

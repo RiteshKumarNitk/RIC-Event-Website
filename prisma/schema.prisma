@@ -91,7 +91,8 @@ model Event {
   updatedAt    DateTime @updatedAt
   bookings     Booking[]
   blockedSeats BlockedSeat[]
-  reservations SeatReservation[]
+  reservations     SeatReservation[]
+  seatAccessTiers  SeatAccessTier[]
 }
 
 // Admin-managed blocked seats (unavailable for booking)
@@ -188,6 +189,20 @@ model SeatLock {
 
   @@unique([eventId, seatId])
   @@index([expiresAt])
+}
+
+// Per-seat access tier overrides (VIP-only, Members-only, General Admission)
+model SeatAccessTier {
+  id        String   @id @default(cuid())
+  eventId   String
+  seatId    String   // e.g. "FLW-A-1"
+  tier      String   // "VIP_ONLY", "MEMBERS_ONLY", "GENERAL"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, seatId])
+  @@index([eventId])
 }
 
 // Member seat reservations — allows members to pre-reserve seats for themselves + guests
