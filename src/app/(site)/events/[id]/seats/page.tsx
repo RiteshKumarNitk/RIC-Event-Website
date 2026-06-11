@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEvents } from "@/app/admin/events/events-provider";
 import { Event, Seat, SeatSection } from "@/lib/types";
 import { SeatingChart } from "@/components/events/seating-chart";
@@ -238,7 +238,9 @@ export default function SeatsPage() {
 
     const [step, setStep] = useState<BookingStep>("showtime");
     const [selectedShowtime, setSelectedShowtime] = useState("");
-    const [ticketCount, setTicketCount] = useState(1);
+    const searchParams = useSearchParams();
+    const initialTickets = Math.min(6, Math.max(1, parseInt(searchParams.get("tickets") || "1", 10) || 1));
+    const [ticketCount, setTicketCount] = useState(initialTickets);
     const [selectedSeats, setSelectedSeats] = useState<{ seat: Seat; section: { sectionName: string; price: number } }[]>([]);
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const [bookedSeats, setBookedSeats] = useState<string[]>([]);
@@ -257,6 +259,12 @@ export default function SeatsPage() {
     const [checkingMember, setCheckingMember] = useState(true);
 
     const event = events.find((e) => e.id === id);
+
+    // Also update ticketCount when search params change (e.g. back navigation)
+    useEffect(() => {
+        const t = parseInt(searchParams.get("tickets") || "1", 10) || 1;
+        setTicketCount(Math.min(6, Math.max(1, t)));
+    }, [searchParams]);
 
     // Check member status on mount
     useEffect(() => {

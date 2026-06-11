@@ -61,14 +61,25 @@ export default function MemberDashboardPage() {
   const router = useRouter();
   const [memberBookings, setMemberBookings] = useState<MemberEventBookingSummary[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [bookingsError, setBookingsError] = useState<string | null>(null);
 
   const fetchBookings = useCallback(async () => {
     setBookingsLoading(true);
-    const res = await getMemberEventBookings();
-    if (res.success && res.bookings) {
-      setMemberBookings(res.bookings);
+    setBookingsError(null);
+    try {
+      const res = await getMemberEventBookings();
+      if (res.success && res.bookings) {
+        setMemberBookings(res.bookings);
+      } else if (res.error) {
+        console.error("[Dashboard] Failed to load bookings:", res.error);
+        setBookingsError(res.error);
+      }
+    } catch (err) {
+      console.error("[Dashboard] Error fetching bookings:", err);
+      setBookingsError("Something went wrong. Please try again.");
+    } finally {
+      setBookingsLoading(false);
     }
-    setBookingsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -372,6 +383,19 @@ export default function MemberDashboardPage() {
                       <Skeleton key={i} className="h-20 w-full rounded-xl" />
                     ))}
                   </div>
+                ) : bookingsError ? (
+                  <div className="text-center py-12">
+                    <div className="mx-auto h-16 w-16 rounded-2xl bg-red-50 flex items-center justify-center mb-4">
+                      <Ticket className="h-8 w-8 text-red-300" />
+                    </div>
+                    <p className="font-medium text-red-600">Failed to load bookings</p>
+                    <p className="text-sm text-muted-foreground mt-1 mb-4">
+                      {bookingsError}
+                    </p>
+                    <Button variant="outline" onClick={fetchBookings} className="mb-2">
+                      Try Again
+                    </Button>
+                  </div>
                 ) : eventSummaries.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="mx-auto h-16 w-16 rounded-2xl bg-amber-50 flex items-center justify-center mb-4">
@@ -398,7 +422,7 @@ export default function MemberDashboardPage() {
                       return (
                         <Link
                           key={b.eventId}
-                          href={`/confirmation/${b.bookingId}`}
+                          href={`/member/ticket/${b.bookingId}`}
                           className={cn(
                             "flex items-center gap-4 p-3.5 rounded-xl border transition-all group",
                             isPast

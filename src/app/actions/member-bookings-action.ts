@@ -20,16 +20,15 @@ export async function getMemberEventBookings(): Promise<{
   try {
     const currentMember = await getCurrentMember();
     if (!currentMember) {
-      return { success: false, error: "Not authenticated." };
+      console.error("[getMemberEventBookings] getCurrentMember() returned null — member-token cookie may be missing or invalid");
+      return { success: false, error: "Not authenticated. Please log in again." };
     }
 
-    // Use DB-level filtering: only fetch bookings whose attendees JSON mentions this memberId
-    const candidateBookings = await prisma.booking.findMany({
-      where: {
-        attendees: {
-          string_contains: String(currentMember.memberId),
-        },
-      },
+    const memberIdStr = String(currentMember.memberId);
+
+    // Fetch bookings with a reasonable limit and filter in memory
+    // (more reliable than string_contains on Json which can silently fail)
+    const allBookings = await prisma.booking.findMany({
       select: {
         id: true,
         eventId: true,
@@ -39,20 +38,20 @@ export async function getMemberEventBookings(): Promise<{
         attendees: true,
       },
       orderBy: { bookingDate: "desc" },
+      take: 500,
     });
 
-    // Precise in-memory filter: verify isMember flag matches
-    const memberBookings = candidateBookings
+    const memberBookings = allBookings
       .filter((b) => {
         const atts = b.attendees as any[];
         return Array.isArray(atts) && atts.some(
-          (a) => a.isMember && String(a.memberId) === String(currentMember.memberId)
+          (a) => String(a.memberId) === memberIdStr
         );
       })
       .map((b) => {
         const atts = b.attendees as any[];
         const memberCount = Array.isArray(atts)
-          ? atts.filter((a) => a.isMember && String(a.memberId) === String(currentMember.memberId)).length
+          ? atts.filter((a) => String(a.memberId) === memberIdStr).length
           : 0;
         return {
           eventId: b.eventId,
@@ -66,7 +65,7 @@ export async function getMemberEventBookings(): Promise<{
 
     return { success: true, bookings: memberBookings };
   } catch (error) {
-    console.error("Error fetching member bookings:", error);
+    console.error("[getMemberEventBookings] Error:", error);
     return { success: false, error: "Failed to fetch bookings." };
   }
 }

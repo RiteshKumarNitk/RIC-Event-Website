@@ -5,6 +5,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
+import { useMemberAuth } from "@/hooks/use-member-auth"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -12,7 +13,7 @@ import * as z from "zod"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
 import { Eye, EyeOff, Mail, Lock, User, Loader2, ArrowRight, Sparkles } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 const signupSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters."),
@@ -21,7 +22,8 @@ const signupSchema = z.object({
 });
 
 export default function SignupPage() {
-  const { signup, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading, signup, signInWithGoogle } = useAuth();
+  const { member, loading: memberLoading } = useMemberAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect");
@@ -29,6 +31,17 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && !memberLoading) {
+      if (user) {
+        router.push(redirect || "/account");
+      } else if (member) {
+        router.push(redirect || "/member/dashboard");
+      }
+    }
+  }, [user, member, authLoading, memberLoading, redirect, router]);
 
   const form = useForm<z.infer<typeof signupSchema>>({
     resolver: zodResolver(signupSchema),

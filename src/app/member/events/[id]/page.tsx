@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { getBookedSeats } from "@/app/actions/booking-actions";
 import { createMemberBooking } from "@/app/actions/member-booking-actions";
+import QRCode from "react-qr-code";
 import {
   ArrowLeft,
   Check,
@@ -27,6 +28,7 @@ import {
   Loader2,
   Ticket,
   ChevronLeft,
+  QrCode,
 } from "lucide-react";
 import {
   TooltipProvider,
@@ -253,6 +255,31 @@ export default function MemberEventBookingPage() {
                 <div className="flex justify-between font-bold">
                   <span>Total</span>
                   <span className="text-green-600">Free</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="text-left mb-8 border-amber-200 bg-amber-50">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <QrCode className="h-4 w-4 text-amber-600" />
+                  <span className="text-sm font-bold text-amber-800">Check-in QR Code</span>
+                </div>
+                <p className="text-xs text-amber-700 mb-4">
+                  Show this QR code at the venue entrance for quick check-in.
+                </p>
+                <div className="flex justify-center">
+                  <div className="bg-white p-3 rounded-lg border border-amber-200">
+                    <QRCode
+                      value={JSON.stringify({
+                        bookingId: bookingResult.bookingId,
+                        eventName: event.name,
+                        user: member.email,
+                        seats: selectedSeats.map((s) => s.seat.id).join(", "),
+                      })}
+                      size={140}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

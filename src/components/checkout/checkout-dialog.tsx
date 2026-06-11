@@ -43,6 +43,9 @@ const PAYMENT_METHODS: { id: PaymentMethod; label: string; icon: any; descriptio
 
 const RIC_UPI_ID = "ric@upi";
 
+// Format seat ID (e.g. "Standard-A-1") to display string ("A-1")
+const displaySeatId = (seatId: string) => seatId.split('-').slice(1).join('-');
+
 const isPaidEvent = (event: Event) => {
     return event.ticketTypes.some(t => t.price > 0);
 }
@@ -135,7 +138,7 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats, mem
         const attendeesData = selectedSeats.map(({seat, section}) => ({
             seatId: seat.id,
             price: section.price,
-            attendeeName: user?.displayName || '',
+            attendeeName: user?.name || user?.displayName || 'Guest',
             memberId: '',
             isMember: false,
             memberIdVerified: false,
@@ -293,6 +296,12 @@ export function CheckoutDialog({ isOpen, onOpenChange, event, selectedSeats, mem
     return { ...base, method: paymentMethod, upiTransactionId: upiId, status: "completed" };
   };    const onSubmit = async () => {
     setIsSubmitting(true);
+    // Validate attendee names before submission
+    const valid = await form.trigger('attendees');
+    if (!valid) {
+      setIsSubmitting(false);
+      return;
+    }
 
     let effectiveUserId = (user as any)?.uid || (user as any)?.id;
 
@@ -518,7 +527,7 @@ const OrderSummaryStep = ({ event, selectedSeats, subtotal, total, isPaid, feeBr
         <Separator />
         <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Seats</span>
-            <span className="font-medium">{selectedSeats.map(s => s.seat.id.split('-')[1]).join(', ')} ({selectedSeats.length})</span>
+            <span className="font-medium">{selectedSeats.map(s => displaySeatId(s.seat.id)).join(', ')} ({selectedSeats.length})</span>
         </div>
         {isPaid && subtotal > 0 && <>
             <Separator />
@@ -561,7 +570,7 @@ const AttendeeDetailsStep = ({ form, fields, onVerify, memberPasswords, setMembe
           return (
             <div key={field.id} className="rounded-lg border p-4 space-y-4">
               <h4 className="font-semibold text-primary">
-                Seat: {form.getValues(`attendees.${index}.seatId`).split('-')[1]}
+                Seat: {displaySeatId(form.getValues(`attendees.${index}.seatId`))}
                 {isVerifiedMember && (
                   <span className="ml-2 text-xs font-normal text-green-600">
                     (<Crown className="inline h-3 w-3" /> Free Ticket)
@@ -872,7 +881,7 @@ const InvoiceStep = ({ event, form, bookingId, total, feeBreakdown, subtotal, me
                 <h4 className="font-semibold mb-2">Attendees & Seats</h4>
                 {form.getValues('attendees').map((attendee: any) => (
                     <div key={attendee.seatId} className="flex justify-between text-sm">
-                        <span>{attendee.attendeeName} ({attendee.seatId.split('-')[1]})</span>
+                        <span>{attendee.attendeeName} ({displaySeatId(attendee.seatId)})</span>
                         <span>{attendee.isMember ? 'Free' : `₹${attendee.price.toFixed(2)}`}</span>
                     </div>
                 ))}

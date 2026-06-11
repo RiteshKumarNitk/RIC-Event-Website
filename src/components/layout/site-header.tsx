@@ -55,13 +55,13 @@ export function SiteHeader() {
               {link.label}
             </Link>
           ))}
-          <Link
+          {/* <Link
             href="/member-login"
             className="px-3 py-2 text-sm font-medium text-amber-600 hover:text-amber-700 rounded-lg hover:bg-amber-500/10 transition-all duration-200 flex items-center gap-1.5"
           >
             <Crown className="h-3.5 w-3.5" />
             Member Login
-          </Link>
+          </Link> */}
         </nav>
 
         <div className="flex flex-1 items-center justify-end gap-2">

@@ -13,7 +13,7 @@ import * as z from "zod"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
 import { Eye, EyeOff, Mail, Lock, Loader2, ArrowRight, Crown, IdCard, Key, User } from "lucide-react"
-import { useState, Suspense } from "react"
+import { useState, Suspense, useEffect } from "react"
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address."),
@@ -21,13 +21,24 @@ const loginSchema = z.object({
 });
 
 function LoginForm() {
-  const { login, signInWithGoogle } = useAuth();
-  const { memberLogin } = useMemberAuth();
+  const { user, loading: authLoading, login, signInWithGoogle } = useAuth();
+  const { member, loading: memberLoading, memberLogin } = useMemberAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect");
   const modeParam = searchParams.get("mode");
   const { toast } = useToast();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && !memberLoading) {
+      if (user) {
+        router.push(redirect || "/account");
+      } else if (member) {
+        router.push(redirect || "/member/dashboard");
+      }
+    }
+  }, [user, member, authLoading, memberLoading, redirect, router]);
 
   const [loginMode, setLoginMode] = useState<"website" | "member">(modeParam === "member" ? "member" : "website");
   const [showPassword, setShowPassword] = useState(false);

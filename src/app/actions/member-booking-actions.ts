@@ -11,6 +11,76 @@ import { sendBookingConfirmation } from "./email-actions";
  * Supports multiple seats per booking. Members can book again for the same event
  * (only the duplicate seat-level check applies, not per-event).
  */
+/**
+ * Fetch full booking details for a member.
+ * Verifies the member owns the booking before returning.
+ */
+export async function getMemberBookingDetails(
+  bookingId: string
+): Promise<{
+  success: boolean;
+  booking?: {
+    id: string;
+    eventId: string;
+    eventName: string;
+    eventDate: Date;
+    total: number;
+    bookingDate: Date;
+    attendees: any[];
+  };
+  error?: string;
+}> {
+  try {
+    const currentMember = await getCurrentMember();
+    if (!currentMember) {
+      return { success: false, error: "You must be logged in as a member." };
+    }
+
+    const member = await prisma.member.findUnique({
+      where: { memberId: currentMember.memberId },
+      select: { id: true, userId: true },
+    });
+    if (!member) {
+      return { success: false, error: "Member record not found." };
+    }
+
+    // Find the booking and verify ownership
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) {
+      return { success: false, error: "Booking not found." };
+    }
+
+    // Check if this booking belongs to this member (via userId or attendee memberId)
+    const attendees = booking.attendees as any[];
+    const isOwner =
+      booking.userId === member.userId ||
+      attendees.some((a) => a.memberId === String(currentMember.memberId));
+
+    if (!isOwner) {
+      return { success: false, error: "You do not have access to this booking." };
+    }
+
+    return {
+      success: true,
+      booking: {
+        id: booking.id,
+        eventId: booking.eventId,
+        eventName: booking.eventName,
+        eventDate: booking.eventDate,
+        total: booking.total,
+        bookingDate: booking.bookingDate,
+        attendees,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching member booking details:", error);
+    return { success: false, error: "Failed to fetch booking details." };
+  }
+}
+
 export async function createMemberBooking(
   eventId: string,
   seatIds: string[],
@@ -135,7 +205,28 @@ export async function createMemberBooking(
       },
     });
 
-    // 9. Release the locks
+    // 9. Create CONFIRMED SeatReservation records so seats appear in admin reservations panel
+    // (uses upsert to handle the [eventId, seatId] unique constraint gracefully)
+    const reservationExpiry = new Date(event.date.getTime() + 24 * 60 * 60 * 1000); // expire 24h after event
+    await prisma.$transaction(
+      seatIds.map((seatId) =>
+        prisma.seatReservation.upsert({
+          where: { eventId_seatId: { eventId, seatId } },
+          update: { status: "CONFIRMED", memberId: member.memberId, memberName: member.name },
+          create: {
+            eventId,
+            seatId,
+            memberId: member.memberId,
+            memberName: member.name,
+            guestCount: 0,
+            status: "CONFIRMED",
+            expiresAt: reservationExpiry,
+          },
+        })
+      )
+    );
+
+    // 10. Release the locks
     await prisma.seatLock.deleteMany({
       where: { eventId, seatId: { in: seatIds } },
     });

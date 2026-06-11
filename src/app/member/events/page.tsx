@@ -26,6 +26,7 @@ import {
   ArrowRight,
   ChevronLeft,
   CheckCircle2,
+  QrCode,
 } from "lucide-react";
 import { format } from "date-fns";
 import Image from "next/image";
@@ -215,20 +216,30 @@ export default function MemberEventsPage() {
                         </div>
                       )}
                       {bookingInfo && (
-                        <div className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-md -mx-0.5">
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="cursor-help border-b border-dotted border-blue-400/40">
-                                  Booked {format(new Date(bookingInfo.bookingDate), "MMM d, h:mm a")}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="text-xs">
-                                {format(new Date(bookingInfo.bookingDate), "MMMM d, yyyy, h:mm:ss a")}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-md -mx-0.5">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-help border-b border-dotted border-blue-400/40">
+                                    Booked {format(new Date(bookingInfo.bookingDate), "MMM d, h:mm a")}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs">
+                                  {format(new Date(bookingInfo.bookingDate), "MMMM d, yyyy, h:mm:ss a")}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <Link
+                            href={`/member/ticket/${bookingInfo.bookingId}`}
+                            className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded-md -mx-0.5 transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <QrCode className="h-3.5 w-3.5 shrink-0" />
+                            <span className="font-medium">View Ticket with QR</span>
+                          </Link>
                         </div>
                       )}
                       <div className="pt-2 flex items-center justify-between border-t border-amber-100 mt-2">

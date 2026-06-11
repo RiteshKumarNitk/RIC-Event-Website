@@ -17,7 +17,7 @@ import { BookingDetailsDialog } from "@/components/account/booking-details-dialo
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Ticket, Clock, ChevronRight, XCircle, Crown, ExternalLink } from "lucide-react";
+import { Calendar, Ticket, Clock, ChevronRight, XCircle, Crown, ExternalLink, User, Mail, Shield, Settings } from "lucide-react";
 import { format } from "date-fns";
 
 export default function AccountPage() {
@@ -142,22 +142,48 @@ export default function AccountPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-1 space-y-6">
             <Card>
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center text-center">
-                  <Avatar className="h-20 w-20 mb-4">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2"><User className="h-5 w-5 text-primary" /> Profile</CardTitle>
+                <CardDescription>Your account information</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center text-center mb-4">
+                  <Avatar className="h-24 w-24 mb-4 ring-4 ring-primary/10">
                     <AvatarImage src={user.image || undefined} />
-                    <AvatarFallback className="text-lg bg-primary/10 text-primary">{initials}</AvatarFallback>
+                    <AvatarFallback className="text-xl bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
                   </Avatar>
-                  <h3 className="font-semibold text-lg">{user.name || 'User'}</h3>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
-                  <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'} className="mt-2">
-                    {user.role === 'ADMIN' ? 'Admin' : 'Member'}
+                  <h3 className="font-bold text-xl">{user.name || 'User'}</h3>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1"><Mail className="h-3.5 w-3.5" />{user.email}</p>
+                  <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'} className="mt-2 gap-1">
+                    <Shield className="h-3 w-3" /> {user.role === 'ADMIN' ? 'Admin' : 'User'}
                   </Badge>
+                </div>
+                <Separator className="my-4" />
+
+                {/* Profile Details */}
+                <div className="space-y-3 mb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Name</span>
+                    <span className="font-medium">{user.name || 'Not set'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Email</span>
+                    <span className="font-medium truncate max-w-[180px]">{user.email}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Role</span>
+                    <span className="font-medium">{user.role === 'ADMIN' ? 'Administrator' : 'Standard User'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Bookings</span>
+                    <span className="font-medium">{registeredBookings.length}</span>
+                  </div>
                 </div>
                 <Separator className="my-4" />
 
                 {/* RIC Member Section */}
                 <div className="mb-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">RIC Membership</p>
                   {linkedMember ? (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
                       <Crown className="h-5 w-5 text-amber-500 mx-auto mb-1" />
@@ -176,12 +202,16 @@ export default function AccountPage() {
                   )}
                 </div>
 
-                <Button variant="outline" className="w-full" onClick={() => user.role === 'ADMIN' && router.push('/admin')}>
-                  {user.role === 'ADMIN' ? 'Admin Panel' : 'Upgrade to Admin'}
-                </Button>
-                <Button variant="ghost" className="w-full mt-2 text-destructive hover:text-destructive" onClick={logout}>
-                  Sign Out
-                </Button>
+                <div className="space-y-2">
+                  {user.role === 'ADMIN' && (
+                    <Button variant="outline" className="w-full gap-2" onClick={() => router.push('/admin')}>
+                      <Settings className="h-4 w-4" /> Admin Panel
+                    </Button>
+                  )}
+                  <Button variant="ghost" className="w-full text-destructive hover:text-destructive hover:bg-destructive/10" onClick={logout}>
+                    Sign Out
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
