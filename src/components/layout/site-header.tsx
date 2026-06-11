@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 export function SiteHeader() {
   const { user, logout } = useAuth();
@@ -41,10 +42,7 @@ export function SiteHeader() {
     <header className={headerClass}>
       <div className="container flex h-16 max-w-screen-2xl items-center">
         <Link href="/" className="mr-8 flex items-center gap-2.5 group">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center group-hover:scale-105 transition-transform">
-            <span className="text-primary-foreground font-bold text-sm">RIC</span>
-          </div>
-          <span className="font-bold text-lg hidden sm:inline-block">RIC Jaipur</span>
+          <Image src="/ric-logo.png" alt="RIC Logo" width={100} height={100} className="object-contain group-hover:scale-105 transition-transform" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-1">
@@ -121,10 +119,7 @@ export function SiteHeader() {
               <SheetContent side="right" className="w-72 p-0">
                 <SheetHeader className="p-6 pb-4 border-b">
                   <SheetTitle className="flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
-                      <span className="text-primary-foreground font-bold text-xs">RIC</span>
-                    </div>
-                    RIC Jaipur
+                    <Image src="/ric-logo.png" alt="RIC Logo" width={28} height={28} className="object-contain" />
                   </SheetTitle>
                 </SheetHeader>
                 <div className="flex flex-col gap-1 p-4">

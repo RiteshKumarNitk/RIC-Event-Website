@@ -179,7 +179,7 @@ export default function AdminDashboard() {
     { label: "Reservations", href: "/admin/reservations", icon: Bookmark, color: "text-orange-600", bg: "bg-orange-100" },
     { label: "Member Bookings", href: "/admin/member-bookings", icon: Ticket, color: "text-rose-600", bg: "bg-rose-100" },
     { label: "Fees & Taxes", href: "/admin/fees", icon: ReceiptText, color: "text-teal-600", bg: "bg-teal-100" },
-    { label: "Hall Manager", href: "/admin/halls", icon: Landmark, color: "text-slate-600", bg: "bg-slate-100" },
+
     { label: "Home Page", href: "/admin/site-content", icon: Newspaper, color: "text-violet-600", bg: "bg-violet-100" },
     { label: "View Site", href: "/", icon: ArrowUpRight, color: "text-gray-600", bg: "bg-gray-100" },
   ];

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
-import { checkRateLimit } from '@/lib/server-auth';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // Rate limit auth endpoints: 10 requests per minute per IP
 const AUTH_RATE_LIMIT = { maxRequests: 10, windowMs: 60_000 };
@@ -48,10 +48,27 @@ export async function middleware(request: NextRequest) {
 
   // Admin route protection
   if (pathname.startsWith('/admin')) {
-    const token = await getToken({
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieName = isProduction ? '__Secure-authjs.session-token' : 'authjs.session-token';
+    
+    // Also check the legacy next-auth cookie name just in case
+    const legacyCookieName = isProduction ? '__Secure-next-auth.session-token' : 'next-auth.session-token';
+    
+    // Get token using NextAuth v5 cookie name (salt)
+    let token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+      salt: cookieName,
     });
+
+    // Fallback for NextAuth v4 compatibility
+    if (!token) {
+      token = await getToken({
+        req: request,
+        secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+        salt: legacyCookieName,
+      });
+    }
 
     if (!token) {
       const loginUrl = new URL('/login', request.url);

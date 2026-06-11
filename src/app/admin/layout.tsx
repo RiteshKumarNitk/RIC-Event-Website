@@ -3,6 +3,8 @@
 import { SidebarProvider, Sidebar, SidebarTrigger, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarHeader, SidebarContent, SidebarInset, SidebarFooter } from "@/components/ui/sidebar";
 import { Home, Calendar, Users, ShieldAlert, BadgePercent, LogOut, LayoutGrid, Newspaper, QrCode, IndianRupee, ReceiptText, Bookmark, Crown } from "lucide-react";
 import Link from "next/link";
+
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffect } from "react";
@@ -59,141 +61,130 @@ export default function AdminLayout({
 
   return (
     <SidebarProvider>
-          <Sidebar>
-            <SidebarHeader>
-              <div className="flex items-center gap-2">
-                <SidebarTrigger />
-                <svg className="h-8 w-8 text-primary" viewBox="0 0 214 214" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M107 214C166.11 214 214 166.11 214 107C214 47.8903 166.11 0 107 0C47.8903 0 0 47.8903 0 107C0 166.11 47.8903 214 107 214Z" fill="currentColor"/>
-                  <path d="M106.999 187.25C151.102 187.25 187.249 151.103 187.249 107C187.249 62.8971 151.102 26.75 106.999 26.75C62.8962 26.75 26.749 62.8971 26.749 107C26.749 151.103 62.8962 187.25 106.999 187.25Z" fill="white"/>
-                  <path d="M107 167.75C140.692 167.75 167.75 140.692 167.75 107C167.75 73.3076 140.692 46.25 107 46.25C73.3076 46.25 46.25 73.3076 46.25 107C46.25 140.692 73.3076 167.75 107 167.75Z" fill="currentColor"/>
-                </svg>
-                <h1 className="font-semibold text-xl">Admin Panel</h1>
-              </div>
-            </SidebarHeader>
-            <SidebarContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <Link href="/admin" passHref>
-                    <SidebarMenuButton isActive={pathname === '/admin'}>
-                      <Home />
-                      <span>Dashboard</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <Link href="/admin/events" passHref>
-                    <SidebarMenuButton isActive={isActive('/admin/events')}>
-                      <Calendar />
-                      <span>Events</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <Link href="/admin/halls" passHref>
-                    <SidebarMenuButton isActive={isActive('/admin/halls')}>
-                      <LayoutGrid />
-                      <span>Hall Manager</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <Link href="/admin/members" passHref>
-                    <SidebarMenuButton isActive={isActive('/admin/members')}>
-                      <BadgePercent />
-                      <span>Members</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <Link href="/admin/users" passHref>
-                    <SidebarMenuButton isActive={isActive('/admin/users')}>
-                      <Users />
-                      <span>Users</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <Link href="/admin/transactions" passHref>
-                    <SidebarMenuButton isActive={isActive('/admin/transactions')}>
-                      <IndianRupee />
-                      <span>Transactions</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <Link href="/admin/reservations" passHref>
-                    <SidebarMenuButton isActive={isActive('/admin/reservations')}>
-                      <Bookmark />
-                      <span>Reservations</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <Link href="/admin/member-bookings" passHref>
-                    <SidebarMenuButton isActive={isActive('/admin/member-bookings')}>
-                      <Crown />
-                      <span>Member Bookings</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <Link href="/admin/checkin" passHref>
-                    <SidebarMenuButton isActive={isActive('/admin/checkin')}>
-                      <QrCode />
-                      <span>Check-In</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <Link href="/admin/fees" passHref>
-                    <SidebarMenuButton isActive={isActive('/admin/fees')}>
-                      <ReceiptText />
-                      <span>Fees & Taxes</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarContent>
-            <SidebarFooter>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <Link href="/admin/site-content" passHref>
-                    <SidebarMenuButton isActive={isActive('/admin/site-content')}>
-                      <Newspaper />
-                      <span>Home Page</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <Link href="/" passHref>
-                    <SidebarMenuButton>
-                      <ShieldAlert />
-                      <span>View Site</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton onClick={() => logout()}>
-                    <LogOut />
-                    <span>Sign Out</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
-          </Sidebar>
-          <SidebarInset>
-            <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
-              <SidebarTrigger className="-ml-1" />
-            </header>
-            <div className="p-4 md:p-8 flex-1 overflow-y-auto">
-              <ErrorBoundary fallbackTitle="Members Unavailable" fallbackDescription="Could not load members. Please try again later.">
-                <MembersProvider>
-                  {children}
-                </MembersProvider>
-              </ErrorBoundary>
-            </div>
-          </SidebarInset>
-        </SidebarProvider>
+      <Sidebar>
+        <SidebarHeader>
+          <div className="flex items-center gap-2">
+            <Image src="/ric-logo.png" alt="RIC Logo" width={40} height={40} className="object-contain" />
+
+            <h1 className="font-semibold text-xl">Admin Panel</h1>
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <Link href="/admin" passHref>
+                <SidebarMenuButton isActive={pathname === '/admin'}>
+                  <Home />
+                  <span>Dashboard</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/admin/events" passHref>
+                <SidebarMenuButton isActive={isActive('/admin/events')}>
+                  <Calendar />
+                  <span>Events</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <Link href="/admin/members" passHref>
+                <SidebarMenuButton isActive={isActive('/admin/members')}>
+                  <BadgePercent />
+                  <span>Members</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/admin/users" passHref>
+                <SidebarMenuButton isActive={isActive('/admin/users')}>
+                  <Users />
+                  <span>Users</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/admin/transactions" passHref>
+                <SidebarMenuButton isActive={isActive('/admin/transactions')}>
+                  <IndianRupee />
+                  <span>Transactions</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/admin/reservations" passHref>
+                <SidebarMenuButton isActive={isActive('/admin/reservations')}>
+                  <Bookmark />
+                  <span>Reservations</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/admin/member-bookings" passHref>
+                <SidebarMenuButton isActive={isActive('/admin/member-bookings')}>
+                  <Crown />
+                  <span>Member Bookings</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/admin/checkin" passHref>
+                <SidebarMenuButton isActive={isActive('/admin/checkin')}>
+                  <QrCode />
+                  <span>Check-In</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/admin/fees" passHref>
+                <SidebarMenuButton isActive={isActive('/admin/fees')}>
+                  <ReceiptText />
+                  <span>Fees & Taxes</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <Link href="/admin/site-content" passHref>
+                <SidebarMenuButton isActive={isActive('/admin/site-content')}>
+                  <Newspaper />
+                  <span>Home Page</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/" passHref>
+                <SidebarMenuButton>
+                  <ShieldAlert />
+                  <span>View Site</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={() => logout()}>
+                <LogOut />
+                <span>Sign Out</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset>
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
+          <SidebarTrigger className="-ml-1" />
+        </header>
+        <div className="p-4 md:p-8 flex-1 overflow-y-auto">
+          <ErrorBoundary fallbackTitle="Members Unavailable" fallbackDescription="Could not load members. Please try again later.">
+            <MembersProvider>
+              {children}
+            </MembersProvider>
+          </ErrorBoundary>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

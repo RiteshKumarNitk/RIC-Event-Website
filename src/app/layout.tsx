@@ -8,6 +8,7 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { EventsProvider } from "@/app/admin/events/events-provider";
 import { MemberAuthProvider } from "@/hooks/use-member-auth";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { ScrollToTop } from "@/components/scroll-to-top";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -43,6 +44,7 @@ export default function RootLayout({
             <ErrorBoundary fallbackTitle="Events Unavailable" fallbackDescription="Could not load events. Please try again later.">
               <EventsProvider>
                 <MemberAuthProvider>
+                  <ScrollToTop />
                   {children}
                   <Toaster />
                 </MemberAuthProvider>
