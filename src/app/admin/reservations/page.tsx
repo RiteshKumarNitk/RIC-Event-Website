@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, Users } from "lucide-react";
+import { Search, Loader2, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, Users, Plus } from "lucide-react";
 import { getAllReservations, adminCancelReservation, adminConfirmReservation } from "@/app/actions/reservation-actions";
+import { CreateReservationDialog } from "./create-reservation-dialog";
 import { useEvents } from "../events/events-provider";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -55,6 +56,7 @@ export default function AdminReservationsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [actionTarget, setActionTarget] = useState<{ id: string; action: "confirm" | "cancel" } | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     fetchReservations();
@@ -121,6 +123,9 @@ export default function AdminReservationsPage() {
           <h1 className="text-3xl font-bold">Reservations</h1>
           <p className="text-muted-foreground mt-1">Manage member seat reservations across all events</p>
         </div>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />Create Reservation
+        </Button>
       </div>
 
       {/* Stats */}
@@ -299,6 +304,12 @@ export default function AdminReservationsPage() {
           )}
         </CardContent>
       </Card>
+
+      <CreateReservationDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={fetchReservations}
+      />
 
       <AlertDialog open={!!actionTarget} onOpenChange={(open) => !open && setActionTarget(null)}>
         <AlertDialogContent>

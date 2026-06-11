@@ -106,6 +106,86 @@ export const RIC_AUDITORIUM: AuditoriumLayoutConfig = {
   ],
 };
 
+// ─── BULK RESERVE HELPERS ───
+
+/**
+ * Get all seat IDs for a given row label across all blocks in the layout.
+ * Row label is e.g. "A", "B", "C" etc.
+ */
+export function getSeatIdsForRow(layout: AuditoriumLayoutConfig, rowLabel: string): string[] {
+  const seatIds: string[] = [];
+  const targetChar = rowLabel.toUpperCase().charCodeAt(0);
+
+  for (const block of layout.blocks) {
+    const offset = block.rowLabelOffset || 0;
+    for (let r = 0; r < block.rows; r++) {
+      const rowChar = String.fromCharCode(65 + r + offset);
+      if (rowChar === String.fromCharCode(targetChar)) {
+        const rowCols = block.colsPerRow ? block.colsPerRow[r] : block.cols;
+        const rowOffset = block.colOffsetsPerRow ? block.colOffsetsPerRow[r] : (block.colOffset || 0);
+        for (let c = 0; c < rowCols; c++) {
+          const seatNum = c + 1 + rowOffset;
+          seatIds.push(`${block.id}-${rowChar}-${seatNum}`);
+        }
+      }
+    }
+  }
+  return seatIds;
+}
+
+/**
+ * Get all seat IDs for a given block (section) in the layout.
+ * Block id is e.g. "FLW", "FC", "FRW" etc.
+ */
+export function getSeatIdsForBlock(layout: AuditoriumLayoutConfig, blockId: string): string[] {
+  const seatIds: string[] = [];
+  const block = layout.blocks.find(b => b.id === blockId);
+  if (!block) return seatIds;
+
+  const offset = block.rowLabelOffset || 0;
+  for (let r = 0; r < block.rows; r++) {
+    const rowLabel = String.fromCharCode(65 + r + offset);
+    const rowCols = block.colsPerRow ? block.colsPerRow[r] : block.cols;
+    const rowOffset = block.colOffsetsPerRow ? block.colOffsetsPerRow[r] : (block.colOffset || 0);
+    for (let c = 0; c < rowCols; c++) {
+      const seatNum = c + 1 + rowOffset;
+      seatIds.push(`${block.id}-${rowLabel}-${seatNum}`);
+    }
+  }
+  return seatIds;
+}
+
+/**
+ * Get all unique row labels available in the layout, sorted alphabetically.
+ */
+export function getAllRowLabels(layout: AuditoriumLayoutConfig): string[] {
+  const labels = new Set<string>();
+  for (const block of layout.blocks) {
+    const offset = block.rowLabelOffset || 0;
+    for (let r = 0; r < block.rows; r++) {
+      labels.add(String.fromCharCode(65 + r + offset));
+    }
+  }
+  return Array.from(labels).sort();
+}
+
+/**
+ * Get all block sections with their metadata (id, category, row range).
+ */
+export function getSections(layout: AuditoriumLayoutConfig): { id: string; label: string; category: SeatCategory; rowRange: string }[] {
+  return layout.blocks.map(block => {
+    const offset = block.rowLabelOffset || 0;
+    const firstRow = String.fromCharCode(65 + offset);
+    const lastRow = String.fromCharCode(65 + block.rows - 1 + offset);
+    return {
+      id: block.id,
+      label: `${block.id} (${block.category})`,
+      category: block.category,
+      rowRange: block.rows > 1 ? `${firstRow}-${lastRow}` : firstRow,
+    };
+  });
+}
+
 // ─── FUNCTIONS ───
 
 export function generateSeatsFromAuditorium(
